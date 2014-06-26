@@ -2,10 +2,9 @@
 
 use std::cell::RefCell;
 use kind::Kind;
+use oid::Oid;
 use pdump::HexDump;
 use flate::{deflate_bytes_zlib, inflate_bytes_zlib};
-
-// TODO: add Oid to this.
 
 // Note that because the Chunks may compress and decompress lazily,
 // the references can't be directly returned.
@@ -13,6 +12,9 @@ use flate::{deflate_bytes_zlib, inflate_bytes_zlib};
 pub trait Chunk {
     // Return the kind associated with this chunk.
     fn kind(&self) -> Kind;
+
+    // Return the Oid describing this chunk.
+    fn oid<'a>(&'a self) -> &'a Oid;
 
     // Return a slice of the data for this chunk.
     // TODO: I'd actually like to be able to make this generic, but
@@ -43,13 +45,18 @@ pub trait Chunk {
 }
 
 // Construct a plain chunk by taking the given data.
-fn new_plain(kind: Kind, data: Vec<u8>) -> Box<Chunk> {
+pub fn new_plain(kind: Kind, data: Vec<u8>) -> Box<Chunk> {
     box PlainChunk::new(kind, data) as Box<Chunk>
 }
 
+// If we know the oid, construct the chunk without computing it.
+pub fn new_plain_with_oid(kind: Kind, oid: Oid, data: Vec<u8>) -> Box<Chunk> {
+    box PlainChunk::new_with_oid(kind, oid, data) as Box<Chunk>
+}
+
 // Construct a chunk from compressed data.
-fn new_compressed(kind: Kind, zdata: Vec<u8>, data_len: uint) -> Box<Chunk> {
-    box CompressedChunk::new(kind, zdata, data_len) as Box<Chunk>
+pub fn new_compressed(kind: Kind, oid: Oid, zdata: Vec<u8>, data_len: uint) -> Box<Chunk> {
+    box CompressedChunk::new(kind, oid, zdata, data_len) as Box<Chunk>
 }
 
 // There are different implementations of chunks, depending on where
@@ -57,6 +64,7 @@ fn new_compressed(kind: Kind, zdata: Vec<u8>, data_len: uint) -> Box<Chunk> {
 // uncompressed data.
 struct PlainChunk {
     kind: Kind,
+    oid: Oid,
     data: Vec<u8>,
 
     // The compressed data is None for untried, Some(None) for
@@ -69,8 +77,20 @@ struct PlainChunk {
 impl PlainChunk {
     // Construct a new Chunk by copying the payload.
     fn new(kind: Kind, data: Vec<u8>) -> PlainChunk {
+        let oid = Oid::from_data(kind, data.as_slice());
         PlainChunk {
             kind: kind,
+            oid: oid,
+            data: data,
+            zdata: RefCell::new(None)
+        }
+    }
+
+    // Construct a new Chunk, in the case where we know the OID.
+    fn new_with_oid(kind: Kind, oid: Oid, data: Vec<u8>) -> PlainChunk {
+        PlainChunk {
+            kind: kind,
+            oid: oid,
             data: data,
             zdata: RefCell::new(None)
         }
@@ -80,6 +100,10 @@ impl PlainChunk {
 impl Chunk for PlainChunk {
     fn kind(&self) -> Kind {
         self.kind
+    }
+
+    fn oid<'a>(&'a self) -> &'a Oid {
+        &self.oid
     }
 
     fn with_data(&self, f: |v: &[u8]|) {
@@ -132,6 +156,7 @@ impl Chunk for PlainChunk {
 
 struct CompressedChunk {
     kind: Kind,
+    oid: Oid,
     data: RefCell<Option<Vec<u8>>>,
     data_len: uint,
     zdata: Vec<u8>,
@@ -139,9 +164,10 @@ struct CompressedChunk {
 
 impl CompressedChunk {
     // Construct a new Chunk by copying the given compressed payload.
-    fn new(kind: Kind, zdata: Vec<u8>, data_len: uint) -> CompressedChunk {
+    fn new(kind: Kind, oid: Oid, zdata: Vec<u8>, data_len: uint) -> CompressedChunk {
         CompressedChunk {
             kind: kind,
+            oid: oid,
             data: RefCell::new(None),
             data_len: data_len,
             zdata: zdata
@@ -152,6 +178,10 @@ impl CompressedChunk {
 impl Chunk for CompressedChunk {
     fn kind(&self) -> Kind {
         self.kind
+    }
+
+    fn oid<'a>(&'a self) -> &'a Oid {
+        &self.oid
     }
 
     fn with_data(&self, f: |v: &[u8]|) {
@@ -204,8 +234,12 @@ mod test {
                     Some(raw) => assert!(raw.as_slice() == p1.as_bytes())
                 };
 
-                let c2 = new_compressed(c1.kind(), Vec::from_slice(comp), c1.data_len());
+                let c2 = new_compressed(c1.kind(), c1.oid().clone(), Vec::from_slice(comp), c1.data_len());
                 assert!(c1.kind() == c2.kind());
+                assert!(c1.oid() == c2.oid());
+                c1.with_data(|v1| {
+                    c2.with_data(|v2| assert!(v1 == v2))
+                });
             }
         });
         // c1.dump();
