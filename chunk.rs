@@ -3,8 +3,10 @@
 use std::cell::RefCell;
 use kind::Kind;
 use oid::Oid;
-use pdump::HexDump;
 use flate::{deflate_bytes_zlib, inflate_bytes_zlib};
+
+#[cfg(test)]
+use pdump::HexDump;
 
 // Note that because the Chunks may compress and decompress lazily,
 // the references can't be directly returned.
