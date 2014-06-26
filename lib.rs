@@ -16,6 +16,9 @@ extern crate fourcc;
 extern crate log;
 
 #[cfg(test)]
+extern crate test;
+
+#[cfg(test)]
 mod testutil;
 
 #[cfg(test)]

@@ -1,6 +1,5 @@
 // Test utilities.
 
-use std::collections::hashmap::HashSet;
 use collections::treemap::TreeSet;
 
 // A short list of words to help generate reasonably compressible
@@ -35,21 +34,6 @@ pub fn make_random_string(size: uint, index: uint) -> String {
     result
 }
 
-#[test]
-fn random_strings() {
-    fn check(size: uint, index: uint) -> String {
-        let text = make_random_string(size, index);
-        assert!(text.len() == size);
-        text
-    }
-    let mut texts: HashSet<String> = HashSet::new();
-    for &i in boundary_sizes().iter() {
-        let text = check(i, i);
-        assert!(texts.insert(text));
-
-    }
-}
-
 // Generate a useful series of sizes, build around powers of two and
 // values 1 greater or less than them.
 pub fn boundary_sizes() -> Vec<uint> {
@@ -67,19 +51,6 @@ pub fn boundary_sizes() -> Vec<uint> {
     nums.iter().map(|&x| x).collect()
 }
 
-#[test]
-fn test_boundaries() {
-    let sizes_vec = boundary_sizes();
-    let sizes = sizes_vec.as_slice();
-
-    // Make sure they are unique and incrementing.
-    let mut prior = sizes[0];
-    for &sz in sizes.tail().iter() {
-        assert!(sz > prior);
-        prior = sz;
-    }
-}
-
 // Simple random number generator.
 struct SimpleRandom {
     state: u32
@@ -93,5 +64,51 @@ impl SimpleRandom {
     fn next(&mut self, limit: uint) -> uint {
         self.state = ((self.state * 1103515245) + 12345) & 0x7fffffff;
         self.state as uint % limit
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::hashmap::HashSet;
+    use super::make_random_string;
+    use super::boundary_sizes;
+    use test::Bencher;
+
+    #[test]
+    fn random_strings() {
+        fn check(size: uint, index: uint) -> String {
+            let text = make_random_string(size, index);
+            assert!(text.len() == size);
+            text
+        }
+        let mut texts: HashSet<String> = HashSet::new();
+        for &i in boundary_sizes().iter() {
+            let text = check(i, i);
+            assert!(texts.insert(text));
+
+        }
+    }
+
+    #[bench]
+    fn large_strings(b: &mut Bencher) {
+        b.iter(|| make_random_string(256 * 1024, 256));
+    }
+
+    #[bench]
+    fn small_strings(b: &mut Bencher) {
+        b.iter(|| make_random_string(32, 32));
+    }
+
+    #[test]
+    fn test_boundaries() {
+        let sizes_vec = boundary_sizes();
+        let sizes = sizes_vec.as_slice();
+
+        // Make sure they are unique and incrementing.
+        let mut prior = sizes[0];
+        for &sz in sizes.tail().iter() {
+            assert!(sz > prior);
+            prior = sz;
+        }
     }
 }
