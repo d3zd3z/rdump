@@ -5,7 +5,7 @@ RUST_FLAGS := -g -O
 
 RUST_FLAGS := $(RUST_FLAGS) -C prefer-dynamic
 
-test_lib: .force
-	$(RUSTC) $(RUST_FLAGS) --test -o $@ lib.rs
+test_lib:
+	$(RUSTC) $(RUST_FLAGS) --dep-info deps.mk --test -o $@ lib.rs
 
-.PHONY: .force
+-include deps.mk
