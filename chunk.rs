@@ -12,24 +12,27 @@ use pdump::HexDump;
 // the references can't be directly returned.
 
 pub trait Chunk {
-    // Return the kind associated with this chunk.
+    /// Return the kind associated with this chunk.
     fn kind(&self) -> Kind;
 
-    // Return the Oid describing this chunk.
+    /// Return the Oid describing this chunk.
     fn oid<'a>(&'a self) -> &'a Oid;
 
-    // Return a slice of the data for this chunk.
+    /// Call `f` with the uncompressed data of the Chunk.
     // TODO: I'd actually like to be able to make this generic, but
     // rustc gives "error: cannot call a generic method through an
     // object"
     // fn with_data<U>(&self, f: |v: &[u8]| -> U) -> U;
     fn with_data(&self, f: |v: &[u8]|);
 
-    // Sometimes, only the data length is needed, and can be computed
-    // without decompressing the data.
+    /// Return the length of the data.
+    ///
+    /// Sometimes, only the data length is needed, and can be computed
+    /// without decompressing the data.
     fn data_len(&self) -> uint;
 
-    // There may be compressed data.
+    /// Call `f` with the compressed version of the data, if that
+    /// compression is meaningful.
     fn with_zdata(&self, f: |v: Option<&[u8]>|);
 
     #[cfg(test)]
