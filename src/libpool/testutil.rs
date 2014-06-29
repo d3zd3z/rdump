@@ -67,12 +67,61 @@ impl SimpleRandom {
     }
 }
 
+// Tempdir.
+pub struct TempDir(Path);
+
+impl TempDir {
+    pub fn new() -> TempDir {
+        use std::{io, rand, os};
+
+        for _ in range(0, 10) {
+            // TODO: This might fail, if dirs get left behind.
+            let path = os::tmpdir().join(format!("rdump-{}", rand::random::<u32>()));
+            match io::fs::mkdir(&path, io::UserRWX) {
+                Ok(_) => return TempDir(path),
+                Err(_) => ()
+            };
+        }
+        fail!("Unable to create tmpdir");
+    }
+
+    pub fn join(&self, path: &str) -> Path {
+        let TempDir(ref p) = *self;
+        p.join(path)
+    }
+
+    pub fn path<'a>(&'a self) -> &'a Path {
+        let TempDir(ref p) = *self;
+        p
+    }
+}
+
+impl Drop for TempDir {
+    fn drop(&mut self) {
+        use std::io;
+
+        let TempDir(ref p) = *self;
+        match io::fs::rmdir_recursive(p) {
+            Ok(_) => (),
+            Err(e) => fail!("Unable to remove tmpdir: {} ({})", p.display(), e)
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::collections::hashmap::HashSet;
     use super::make_random_string;
     use super::boundary_sizes;
+    use super::TempDir;
     use test::Bencher;
+
+    macro_rules! check( ($e:expr) => (
+        match $e {
+            Ok(t) => t,
+            Err(e) => fail!("{} failed with: {}", stringify!($e), e),
+        }
+    ) )
 
     #[test]
     fn random_strings() {
@@ -110,5 +159,24 @@ mod test {
             assert!(sz > prior);
             prior = sz;
         }
+    }
+
+    #[test]
+    fn test_tmpdir() {
+        use std::{io, path};
+        let path: path::Path;
+        {
+            let tmp = TempDir::new();
+            path = tmp.path().clone();
+            check!(io::fs::mkdir(&tmp.join("subdir"),
+                (io::UserRead | io::UserWrite)));
+            assert!(check!(io::fs::lstat(&tmp.join("subdir"))).kind == io::TypeDirectory);
+        }
+
+        // Make sure it goes away when the TempDir goes out of scope.
+        match io::fs::lstat(&path) {
+            Ok(_) => fail!("Directory should have been removed"),
+            Err(_) => ()
+        };
     }
 }
