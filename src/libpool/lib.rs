@@ -16,6 +16,7 @@ extern crate libc;
 extern crate collections;
 extern crate flate;
 extern crate uuid;
+extern crate sqlite3;
 
 #[phase(plugin)]
 extern crate fourcc;
