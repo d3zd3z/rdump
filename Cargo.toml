@@ -1,0 +1,21 @@
+[package]
+
+name = "rdump"
+version = "0.1.0"
+authors = [ "davidb@davidb.org" ]
+
+[dependencies.sqlite3]
+
+# Unmerged pull requests are pending.
+# git = "https://github.com/linuxfood/rustsqlite"
+path = "../rustsqlite"
+
+[[lib]]
+
+name = "libpool"
+path = "src/libpool/lib.rs"
+crate_type = ["dylib", "rlib"]
+
+[[bin]]
+
+name = "rdump"

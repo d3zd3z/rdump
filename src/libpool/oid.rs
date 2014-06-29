@@ -31,7 +31,7 @@ impl Clone for Oid {
 
 mod openssl {
     use libc::{c_int, c_uint, c_uchar, c_void, size_t, uint32_t};
-    use std::mem;
+    #[cfg(test)] use std::mem;
 
     // Despite the type name in the SSL header, these are expected to
     // all be 32-bit values.
@@ -60,7 +60,7 @@ mod openssl {
     }
 }
 
-pub struct Context {
+struct Context {
     core: openssl::ShaCtx,
 }
 
@@ -193,6 +193,8 @@ impl fmt::Show for Oid {
 }
 
 impl Oid {
+    // TODO: Use serialize::hex instead of implementing this
+    // ourselves.
     pub fn to_hex(&self) -> String {
         let mut result = String::new();
         for i in range(0u, 20) {
@@ -201,6 +203,8 @@ impl Oid {
         result
     }
 
+    // TODO: Use serialize::hex instead of implementing this
+    // ourselves.
     pub fn from_hex(text: &str) -> Option<Oid> {
         if text.len() != 40 {
             return None
@@ -222,6 +226,11 @@ impl Oid {
         ctx.update(data);
         ctx.final()
     }
+
+    // Generate an Oid from the textual representation of an int.
+    pub fn from_uint(item: uint) -> Oid {
+        Oid::from_data(kind!("blob"), format!("{}", item).as_bytes())
+    }
 }
 
 #[test]
@@ -235,4 +244,15 @@ fn data_hashes() {
 #[test]
 fn invalid_oid() {
     assert!(Oid::from_hex("9d91380b823559dd2a4ee5bce3fcc697c56ba3") == None);
+}
+
+#[cfg(test)]
+mod test {
+    use test::Bencher;
+    use super::{Oid};
+
+    #[bench]
+    fn int_generation(b: &mut Bencher) {
+        b.iter(|| Oid::from_uint(12345));
+    }
 }

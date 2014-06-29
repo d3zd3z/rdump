@@ -1,5 +1,16 @@
 # Simple case, build test framework
 
+CARGO = cargo
+CARGO_TEST = cargo-test
+
+all:
+	$(CARGO) build -v
+
+test:
+	$(CARGO_TEST) -v
+
+.PHONY: all test
+
 RUSTC = rustc
 RUST_FLAGS := -g -O
 
