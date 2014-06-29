@@ -78,7 +78,15 @@ impl<C> Schema<C> {
         if version.as_slice() == self.version {
             return Ok(&[])
         }
-        Err(SQLITE_ROW)
+
+        for compat in self.compats.iter() {
+            if version.as_slice() == compat.version {
+                return Ok(compat.inabilities);
+            }
+        }
+
+        // This isn't really an Sqlite failure, so just fail here.
+        fail!("No compatible database schema found");
     }
 }
 
@@ -94,9 +102,10 @@ pub struct SchemaCompat<C> {
 
 #[cfg(test)]
 mod test {
-    use super::Schema;
+    use super::{Schema, SchemaCompat};
     use testutil::TempDir;
 
+    #[deriving(PartialEq)]
     enum Modes {
         NoBar
     }
@@ -105,9 +114,22 @@ mod test {
         Schema {
             version: "1",
             schema: &[
-                r"CREATE TABLE foo(id INTEGER PRIMARY KEY)"
-                ],
+                r"CREATE TABLE foo(id INTEGER PRIMARY KEY)",
+            ],
             compats: &[]
+        };
+
+    static schema2: Schema<Modes> =
+        Schema {
+            version: "2",
+            schema: &[
+                r"CREATE TABLE foo(id INTEGER PRIMARY KEY, bar TEXT)",
+            ],
+            compats: &[
+                SchemaCompat {
+                    version: "1",
+                    inabilities: &[ NoBar ]
+                } ],
         };
 
     #[test]
@@ -116,5 +138,14 @@ mod test {
         let db = ::sqlite3::open(tmp.join("test1.db").as_str().unwrap()).unwrap();
         schema1.set(&db).unwrap();
         schema1.check(&db).unwrap();
+    }
+
+    #[test]
+    fn test_compat() {
+        let tmp = TempDir::new();
+        let db = ::sqlite3::open(tmp.join("test2.db").as_str().unwrap()).unwrap();
+        schema1.set(&db).unwrap();
+        assert!(schema1.check(&db).unwrap() == &[]);
+        assert!(schema2.check(&db).unwrap() == &[NoBar]);
     }
 }
