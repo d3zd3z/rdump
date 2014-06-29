@@ -9,6 +9,10 @@
 #![feature(phase)]
 #![feature(macro_rules)]
 
+// Needed until https://github.com/rust-lang/rust/issues/13853 and/or
+// https://github.com/rust-lang/rust/issues/14889 are fixed.
+#![feature(unsafe_destructor)]
+
 /// Rust dump
 
 extern crate core;

@@ -3,7 +3,7 @@
 pub use sqlite3::{
     Database,
     ResultCode, SqliteResult,
-    BindArg, Text,
+    BindArg, Integer, Text,
     SQLITE_OK, SQLITE_DONE, SQLITE_ROW
 };
 
@@ -90,6 +90,61 @@ impl<C> Schema<C> {
     }
 }
 
+/// A sequence of operations can be wrapped in a transaction.
+/// Currently, transactions cannot be nested.  If a transaction
+/// executes a `commit` before being dropped, then the operations will
+/// be committed, otherwise they will be rolled back.  Although the
+/// database doesn't sequence it, operations performed after the
+/// commit will not be part of the transaction.
+///
+/// TODO: Are savepoints useful?
+pub struct Transaction<'a> {
+    db: &'a Database,
+    committed: bool
+}
+
+impl<'a> Transaction<'a> {
+    pub fn new(db: &'a Database) -> SqliteResult<Transaction<'a>> {
+        try!(sql_simple(db, "BEGIN TRANSACTION", &[]));
+        Ok(Transaction {
+            db: db,
+            committed: false
+        })
+    }
+
+    pub fn commit(&mut self) -> SqliteResult<()> {
+        assert!(!self.committed);
+        try!(sql_simple(self.db, "COMMIT", &[]));
+        self.committed = true;
+        Ok(())
+    }
+
+    // Sometimes, it's handy to just wrap a function in a transaction.
+    // This calls 'f', and commits, if 'f' returns an "Ok" result.
+    pub fn with_xact<U>(db: &'a Database, f: || -> SqliteResult<U>) -> SqliteResult<U> {
+        let mut xact = try!(Transaction::new(db));
+        match f() {
+            Ok(r) => {
+                try!(xact.commit());
+                Ok(r)
+            },
+            e => e
+        }
+    }
+}
+
+#[unsafe_destructor]
+impl<'a> Drop for Transaction<'a> {
+    fn drop(&mut self) {
+        if !self.committed {
+            match sql_simple(self.db, "ROLLBACK", &[]) {
+                Ok(_) => (),
+                Err(e) => fail!("Error rolling back transaction: {}", e)
+            }
+        }
+    }
+}
+
 /// Each version of the compatible database will have zero or more
 /// inabilities to that database.  These are of type `C` which is
 /// specific to the given database.
@@ -102,7 +157,9 @@ pub struct SchemaCompat<C> {
 
 #[cfg(test)]
 mod test {
-    use super::{Schema, SchemaCompat};
+    use std::collections::HashSet;
+    use super::{Schema, SchemaCompat, Transaction, SqliteResult};
+    use super::{SQLITE_DONE, SQLITE_ROW};
     use testutil::TempDir;
 
     #[deriving(PartialEq)]
@@ -147,5 +204,43 @@ mod test {
         schema1.set(&db).unwrap();
         assert!(schema1.check(&db).unwrap() == &[]);
         assert!(schema2.check(&db).unwrap() == &[NoBar]);
+    }
+
+    // Try adding the number to the database.
+    fn add_number(db: &super::Database, num: int) -> SqliteResult<()> {
+        super::sql_simple(db, "INSERT INTO foo VALUES (?)", &[super::Integer(num)])
+    }
+
+    fn check_numbers(db: &super::Database) -> SqliteResult<HashSet<int>> {
+        let cur = try!(db.prepare("SELECT id FROM foo", &None));
+        let mut result = HashSet::new();
+        loop {
+            match cur.step() {
+                SQLITE_DONE => break,
+                SQLITE_ROW => result.insert(cur.get_int(0)),
+                e => return Err(e)
+            };
+        }
+        Ok(result)
+    }
+
+    fn add_abort(db: &super::Database, num: int) -> SqliteResult<()> {
+        let _xact = try!(Transaction::new(db));
+        try!(super::sql_simple(db, "INSERT INTO foo VALUES (?)", &[super::Integer(num)]));
+        // Don't commit.
+        Ok(())
+    }
+
+    #[test]
+    fn transaction_test() {
+        let tmp = TempDir::new();
+        let db = ::sqlite3::open(tmp.join("xact.db").as_str().unwrap()).unwrap();
+        Transaction::with_xact(&db, || schema1.set(&db)).unwrap();
+        Transaction::with_xact(&db, || add_number(&db, 10)).unwrap();
+        let good1 = [10].iter().map(|&x| x).collect();
+        assert!(Transaction::with_xact(&db, || check_numbers(&db)).unwrap() == good1);
+
+        add_abort(&db, 11).unwrap();
+        assert!(Transaction::with_xact(&db, || check_numbers(&db)).unwrap() == good1);
     }
 }

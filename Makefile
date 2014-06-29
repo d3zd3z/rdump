@@ -43,7 +43,7 @@ $(LIBPOOL): $(SRC) $(SQLITE3)
 $(BIN_TARGETS): target/%: src/bin/%.rs $(SQLITE3) $(LIBPOOL)
 	$(RUSTC) $(RUST_FLAGS) $(DEPS) --out-dir target $<
 
-target/tests/pool: $(SRC)
+target/tests/pool: $(SRC) $(SQLITE3)
 	mkdir -p target/tests
 	$(RUSTC) $(RUST_FLAGS) --test --out-dir target/tests $(DEPS) src/libpool/lib.rs
 
