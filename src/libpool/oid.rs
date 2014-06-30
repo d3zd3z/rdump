@@ -50,7 +50,7 @@ mod openssl {
     #[link(name = "crypto")]
     extern {
         pub fn SHA1_Init(c: *mut ShaCtx) -> c_int;
-        pub fn SHA1_Update(c: *mut ShaCtx, data: *c_void, len: size_t) -> c_int;
+        pub fn SHA1_Update(c: *mut ShaCtx, data: *const c_void, len: size_t) -> c_int;
         pub fn SHA1_Final(md: *mut c_uchar, c: *mut ShaCtx) -> c_int;
     }
 
@@ -76,7 +76,7 @@ impl Context {
     fn update(&mut self, data: &[u8]) {
         unsafe {
             openssl::SHA1_Update(&mut self.core,
-                                 data.as_ptr() as *::libc::c_void,
+                                 data.as_ptr() as *const ::libc::c_void,
                                  data.len() as ::libc::size_t);
         }
     }
