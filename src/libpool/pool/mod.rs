@@ -7,6 +7,7 @@ use std::io::IoResult;
 use uuid::Uuid;
 
 mod sql;
+mod file;
 
 /// A source of chunks.  This is similar to a `Map`, except that the
 /// values aren't kept in memory, so we have to return real items

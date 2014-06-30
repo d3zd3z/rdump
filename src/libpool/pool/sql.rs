@@ -1,6 +1,8 @@
 // SQL Support.
 
+use std::io;
 pub use sqlite3::{
+    open,
     Database,
     ResultCode, SqliteResult,
     BindArg, Integer, Text,
@@ -30,6 +32,15 @@ pub fn sql_simple(db: &Database, sql: &str, values: &[BindArg]) -> SqliteResult<
     }
 }
 
+/// Convert an ResultCode into an IOError
+pub fn to_ioerror(rc: ResultCode) -> io::IoError {
+    io::IoError {
+        kind: io::OtherIoError,
+        desc: "SQLite3 error",
+        detail: Some(format!("SQLite: {}", rc).to_string())
+    }
+}
+
 /// Schema support.
 
 /// A description of a database schema.  A given schema has a specific
@@ -38,12 +49,12 @@ pub fn sql_simple(db: &Database, sql: &str, values: &[BindArg]) -> SqliteResult<
 pub struct Schema<C> {
     /// A specific version string for the version described in
     /// `schema` below.
-    version: &'static str,
+    pub version: &'static str,
     /// The SQL commands that will initialize the database to this
     /// schema.
-    schema: &'static [&'static str],
+    pub schema: &'static [&'static str],
     /// Possible compatible versions.
-    compats: &'static [SchemaCompat<C>],
+    pub compats: &'static [SchemaCompat<C>],
 }
 
 impl<C> Schema<C> {
@@ -150,9 +161,9 @@ impl<'a> Drop for Transaction<'a> {
 /// specific to the given database.
 pub struct SchemaCompat<C> {
     /// The version of this compat.
-    version: &'static str,
+    pub version: &'static str,
     /// The inabilities we have when this version is seen.
-    inabilities: &'static [C],
+    pub inabilities: &'static [C],
 }
 
 #[cfg(test)]
