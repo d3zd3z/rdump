@@ -74,7 +74,7 @@ impl TempDir {
     pub fn new() -> TempDir {
         use std::{io, rand, os};
 
-        for _ in range(0, 10) {
+        for _ in range(0u, 10) {
             // TODO: This might fail, if dirs get left behind.
             let path = os::tmpdir().join(format!("rdump-{}", rand::random::<u32>()));
             match io::fs::mkdir(&path, io::UserRWX) {

@@ -237,7 +237,7 @@ mod test {
         let db = ::sqlite3::open(tmp.join("xact.db").as_str().unwrap()).unwrap();
         Transaction::with_xact(&db, || schema1.set(&db)).unwrap();
         Transaction::with_xact(&db, || add_number(&db, 10)).unwrap();
-        let good1 = [10].iter().map(|&x| x).collect();
+        let good1 = [10i].iter().map(|&x| x).collect();
         assert!(Transaction::with_xact(&db, || check_numbers(&db)).unwrap() == good1);
 
         add_abort(&db, 11).unwrap();
