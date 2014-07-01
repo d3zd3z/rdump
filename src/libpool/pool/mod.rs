@@ -3,10 +3,11 @@
 use oid::Oid;
 use chunk::Chunk;
 
-use std::io::IoResult;
+use std::io::{fs, IoResult};
 use uuid::Uuid;
 
 pub use self::file::create;
+use self::file::FilePool;
 
 mod sql;
 mod file;
@@ -31,4 +32,32 @@ trait ChunkSync: ChunkSource {
     fn add(&mut self, chunk: &Chunk) -> IoResult<()>;
 
     fn flush(&mut self) -> IoResult<()>;
+}
+
+/// Attempt to open a pool, returning if it possible.
+fn open(path: Path) -> IoResult<Box<ChunkSync>> {
+   try!(fs::stat(&path.join("data.db")));
+
+   match FilePool::open(path) {
+       Ok(p) => Ok(box p as Box<ChunkSync>),
+       Err(e) => Err(e)
+   }
+}
+
+#[cfg(test)]
+mod test {
+    use testutil::TempDir;
+    use super::{create, open};
+
+    #[test]
+    fn simple() {
+        let tmp = TempDir::new();
+        let pname = tmp.join("mypool");
+        create(&pname).unwrap();
+
+        let pool = open(pname).unwrap();
+
+        // Make sure the uuid is valid.
+        assert!(pool.uuid().get_version() == Some(::uuid::Version4Random));
+    }
 }

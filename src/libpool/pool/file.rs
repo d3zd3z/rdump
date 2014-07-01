@@ -4,21 +4,87 @@ use std::io;
 use std::io::{fs, IoResult};
 use super::sql;
 use super::sql::{Schema, SchemaCompat};
+use super::{ChunkSync, ChunkSource};
+use chunk::{Chunk};
+
+use oid::Oid;
 use uuid::Uuid;
+
+// Like try!(), but remaps the SQL error to an IoResult.
+macro_rules! sql_try( ($e:expr) => ( try!($e.map_err(sql::to_ioerror))))
 
 pub fn create(path: &Path) -> IoResult<()> {
     try!(fs::mkdir(path, io::UserRWX));
     try!(fs::mkdir(&path.join("blobs"), io::UserRWX));
-    let db = try!(sql::open(path.join("data.db").as_str().unwrap())
-                 .map_err(sql::to_ioerror));
-    try!(pool_schema.set(&db).map_err(sql::to_ioerror));
+    let db = sql_try!(sql::open(path.join("data.db").as_str().unwrap()));
+    sql_try!(pool_schema.set(&db));
 
-    try!(sql::sql_simple(&db,
-                         "INSERT INTO props (key, value) VALUES (?, ?)",
-                         &[sql::Text("uuid".to_string()),
-                         sql::Text(Uuid::new_v4().to_hyphenated_str())])
-         .map_err(sql::to_ioerror));
+    sql_try!(sql::sql_simple(&db,
+                             "INSERT INTO props (key, value) VALUES (?, ?)",
+                             &[sql::Text("uuid".to_string()),
+                             sql::Text(Uuid::new_v4().to_hyphenated_str())]));
     Ok(())
+}
+
+pub struct FilePool {
+    db: sql::Database,
+    path: Path,
+    uuid: Uuid,
+}
+
+impl FilePool {
+    pub fn open(path: Path) -> IoResult<FilePool> {
+        let db = sql_try!(sql::open(path.join("data.db").as_str().unwrap()));
+        let _features = sql_try!(pool_schema.check(&db));
+
+        // Retrieve the uuid.
+        // TODO: Obviously, we need a better way of decoding these.
+        let uuid = match sql_try!(sql::sql_one(&db, "SELECT value FROM props WHERE key = 'uuid'", &[])) {
+            None => fail!("No uuid present"),
+            // TODO: Vector patterns would be nice.
+            Some(elts) => {
+                match elts.as_slice() {
+                    [sql::Text(ref text)] => match Uuid::parse_string(text.as_slice()) {
+                        Ok(u) => u,
+                        Err(e) => fail!("Invalid uuid: {}", e)
+                    },
+                    _ => fail!("Invalid column result for uuid")
+                }
+            }
+        };
+
+        Ok(FilePool {
+            db: db,
+            path: path,
+            uuid: uuid
+        })
+    }
+}
+
+impl Collection for FilePool {
+    fn len(&self) -> uint {
+        fail!("TODO");
+    }
+}
+
+impl ChunkSource for FilePool {
+    fn find(&mut self, key: &Oid) -> IoResult<Box<Chunk>> {
+        fail!("TODO");
+    }
+
+    fn uuid<'a>(&'a self) -> &'a Uuid {
+        &self.uuid
+    }
+}
+
+impl ChunkSync for FilePool {
+    fn add(&mut self, chunk: &Chunk) -> IoResult<()> {
+        fail!("TODO");
+    }
+
+    fn flush(&mut self) -> IoResult<()> {
+        fail!("TODO");
+    }
 }
 
 enum PoolInabilities {
