@@ -6,6 +6,8 @@ use chunk::Chunk;
 use std::io::IoResult;
 use uuid::Uuid;
 
+pub use self::file::create;
+
 mod sql;
 mod file;
 
