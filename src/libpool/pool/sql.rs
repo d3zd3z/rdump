@@ -5,8 +5,11 @@ pub use sqlite3::{
     open,
     Database,
     ResultCode, SqliteResult,
-    BindArg, Integer, Text,
-    SQLITE_OK, SQLITE_DONE, SQLITE_ROW
+    BindArg, Integer, Text, Float64, Blob, Null,
+    SQLITE_OK, SQLITE_DONE, SQLITE_ROW,
+
+    SQLITE_INTEGER, SQLITE_FLOAT, SQLITE_TEXT, SQLITE_BLOB,
+    SQLITE_NULL,
 };
 
 // First, some utilities to make sqlite3 a little easier to use.
@@ -30,6 +33,38 @@ pub fn sql_simple(db: &Database, sql: &str, values: &[BindArg]) -> SqliteResult<
         SQLITE_DONE => Ok(()),
         e => Err(e)
     }
+}
+
+/// Execute an SQL query, with parameters, that expects a single
+/// result row.
+pub fn sql_one(db: &Database, sql: &str, values: &[BindArg]) -> SqliteResult<Option<Vec<BindArg>>> {
+    let cur = try!(db.prepare(sql, &None));
+    try!(sql_check(cur.bind_params(values)));
+    let mut result = Vec::new();
+    match cur.step() {
+        SQLITE_DONE => return Ok(None),
+        SQLITE_ROW => {
+            for i in range(0, cur.get_column_count()) {
+                let res = match cur.get_column_type(i) {
+                    SQLITE_INTEGER => Integer(cur.get_int(i)),
+                    SQLITE_FLOAT   => Float64(cur.get_f64(i)),
+                    SQLITE_TEXT    => Text(cur.get_text(i)),
+                    SQLITE_BLOB    => Blob(cur.get_blob(i)),
+                    SQLITE_NULL    => Null
+                };
+                result.push(res);
+            }
+        },
+        e => return Err(e)
+    };
+
+    // Make sure it is the one and only row.
+    match cur.step() {
+        SQLITE_DONE => (),
+        e => return Err(e)
+    };
+
+    Ok(Some(result))
 }
 
 /// Convert an ResultCode into an IOError
@@ -171,6 +206,8 @@ mod test {
     use std::collections::HashSet;
     use super::{Schema, SchemaCompat, Transaction, SqliteResult};
     use super::{SQLITE_DONE, SQLITE_ROW};
+    use super::{Integer};
+    use super::{sql_one};
     use testutil::TempDir;
 
     #[deriving(PartialEq)]
@@ -253,5 +290,17 @@ mod test {
 
         add_abort(&db, 11).unwrap();
         assert!(Transaction::with_xact(&db, || check_numbers(&db)).unwrap() == good1);
+    }
+
+    #[test]
+    fn one_test() {
+        let tmp = TempDir::new();
+        let db = ::sqlite3::open(tmp.join("xact.db").as_str().unwrap()).unwrap();
+        Transaction::with_xact(&db, || schema1.set(&db)).unwrap();
+
+        assert!(sql_one(&db, "SELECT id FROM foo where id = 42", &[]) == Ok(None));
+        Transaction::with_xact(&db, || add_number(&db, 10)).unwrap();
+        assert!(sql_one(&db, "SELECT id FROM foo where id = 42", &[]) == Ok(None));
+        assert!(sql_one(&db, "SELECT id FROM foo where id = 10", &[]) == Ok(Some(vec![Integer(10)])));
     }
 }
