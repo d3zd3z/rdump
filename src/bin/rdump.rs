@@ -40,6 +40,7 @@ fn create(path: &str) {
 fn list(path: &str) {
     let p = pool::open(Path::new(path)).unwrap();
 
+    println!("Pool has {} chunks", p.len());
     for id in p.backups().unwrap().iter() {
         let ch = p.find(id).unwrap();
         println!("kind: {}", ch.kind());

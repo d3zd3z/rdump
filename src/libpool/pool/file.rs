@@ -64,7 +64,16 @@ impl FilePool {
 
 impl Collection for FilePool {
     fn len(&self) -> uint {
-        fail!("TODO");
+        // Not sure how useful this really is.
+        match (sql::sql_one(&self.db,
+                            "SELECT count(*) FROM blobs", [])) {
+            Err(e) => fail!("SQL error: {}", e),
+            Ok(None) => fail!("Unable to query rows"),
+            Ok(Some(elts)) => match elts.as_slice() {
+                [sql::Integer(count)] => count as uint,
+                _ => fail!("Invalid sql query result")
+            }
+        }
     }
 }
 
