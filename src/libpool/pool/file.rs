@@ -5,8 +5,9 @@ use std::io::{fs, IoResult};
 use super::sql;
 use super::sql::{Schema, SchemaCompat};
 use super::{ChunkSync, ChunkSource};
-use chunk::{Chunk};
+use chunk::{Chunk, new_compressed, new_plain_with_oid};
 
+use kind::Kind;
 use oid::Oid;
 use uuid::Uuid;
 
@@ -68,8 +69,34 @@ impl Collection for FilePool {
 }
 
 impl ChunkSource for FilePool {
-    fn find(&mut self, key: &Oid) -> IoResult<Box<Chunk>> {
-        fail!("TODO");
+    fn find(&self, key: &Oid) -> IoResult<Box<Chunk>> {
+        match sql_try!(sql::sql_one(&self.db,
+                                    "SELECT kind, size, zsize, data
+                                    FROM blobs WHERE oid = ?",
+                                    [sql::Blob(Vec::from_slice(key.bytes))])) {
+            None => fail!("Not found"), // Error?
+            Some(elts) => match elts.as_slice() {
+                [sql::Text(ref kind), sql::Integer(size), sql::Integer(zsize), ref data] => {
+                    if size == 0 { fail!("TODO: null chunk") }
+                    let payload = match data {
+                        &sql::Null => fail!("TODO: Out of band data"),
+                        &sql::Blob(ref payload) => payload,
+                        _ => fail!("Invalid data type in database")
+                    };
+
+                    if size == zsize {
+                        // TODO: Can we move instead of clone?
+                        Ok(new_plain_with_oid(Kind::from_str(kind.as_slice()).unwrap(), 
+                                              key.clone(), payload.clone()))
+                    } else {
+                        Ok(new_compressed(Kind::from_str(kind.as_slice()).unwrap(),
+                                          key.clone(), payload.clone(), size as uint))
+                    }
+                },
+
+                _ => fail!("Row number of columns")
+            }
+        }
     }
 
     fn uuid<'a>(&'a self) -> &'a Uuid {

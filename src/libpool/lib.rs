@@ -34,8 +34,8 @@ extern crate test;
 #[cfg(test)]
 mod testutil;
 
-#[cfg(test)]
-mod pdump;
+// #[cfg(test)]
+pub mod pdump;
 
 pub mod kind;
 pub mod oid;

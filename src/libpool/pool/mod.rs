@@ -17,7 +17,7 @@ mod file;
 /// rather than references to them.
 pub trait ChunkSource: Collection {
     /// Return a new chunk with the given key.
-    fn find(&mut self, key: &Oid) -> IoResult<Box<Chunk>>;
+    fn find(&self, key: &Oid) -> IoResult<Box<Chunk>>;
 
     /// It is also useful to find things, possibly not using all of
     /// the information about the chunk.

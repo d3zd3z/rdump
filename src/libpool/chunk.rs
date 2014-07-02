@@ -225,6 +225,10 @@ mod test {
     use testutil::{boundary_sizes, make_random_string};
     use flate::inflate_bytes_zlib;
 
+    // TODO: This shouldn't be needed, but seems to be for the macro
+    // to work.
+    use kind::Kind;
+
     fn single_chunk(index: uint) {
         let p1 = make_random_string(index, index);
         let c1 = new_plain(kind!("blob"), Vec::from_slice(p1.as_bytes()));
