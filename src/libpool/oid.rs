@@ -227,6 +227,15 @@ impl Oid {
         ctx.final()
     }
 
+    pub fn from_raw(bytes: &[u8]) -> Oid {
+        if bytes.len() != 20 {
+            fail!("OID is incorrect length");
+        }
+        let mut result: Oid = unsafe { mem::uninitialized() };
+        result.bytes.copy_from(bytes);
+        result
+    }
+
     // Generate an Oid from the textual representation of an int.
     pub fn from_uint(item: uint) -> Oid {
         Oid::from_data(kind!("blob"), format!("{}", item).as_bytes())

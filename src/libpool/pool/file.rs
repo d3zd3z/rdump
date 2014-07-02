@@ -75,6 +75,25 @@ impl ChunkSource for FilePool {
     fn uuid<'a>(&'a self) -> &'a Uuid {
         &self.uuid
     }
+
+    fn backups(&self) -> IoResult<Vec<Oid>> {
+        let cur = sql_try!(self.db.prepare("
+            SELECT oid FROM blobs WHERE kind = 'back'", &None));
+        let mut result = Vec::new();
+        loop {
+            match cur.step() {
+                sql::SQLITE_DONE => break,
+                sql::SQLITE_ROW => {
+                    let blob = cur.get_blob(0);
+                    assert!(blob.len() == 20);
+                    let oid = Oid::from_raw(blob.as_slice());
+                    result.push(oid);
+                },
+                e => return Err(sql::to_ioerror(e))
+            }
+        }
+        Ok(result)
+    }
 }
 
 impl ChunkSync for FilePool {
@@ -96,6 +115,7 @@ static pool_schema: Schema<PoolInabilities> =
     Schema {
         version: "1:2014-03-18",
         schema: &[
+            r#"PRAGMA PAGE_SIZE=8192"#,
             r#"CREATE TABLE blobs (
                 id INTEGER PRIMARY KEY,
                 oid BLOB UNIQUE NOT NULL,

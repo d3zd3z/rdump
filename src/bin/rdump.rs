@@ -15,6 +15,7 @@ fn main() {
 
     match (args[0].as_slice(), args.tail()) {
         ("create", [ref path]) => create(path.as_slice()),
+        ("list", [ref path]) => list(path.as_slice()),
         (ref cmd, e) => fail!("Unknown args: {} {}", cmd, e)
     };
 }
@@ -24,4 +25,12 @@ fn create(path: &str) {
         Ok(()) => (),
         Err(e) => fail!("Unable to create pool: {}", e)
     };
+}
+
+fn list(path: &str) {
+    let p = pool::open(Path::new(path)).unwrap();
+
+    for id in p.backups().unwrap().iter() {
+        println!("{}", id.to_hex());
+    }
 }
