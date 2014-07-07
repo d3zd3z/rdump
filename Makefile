@@ -25,8 +25,8 @@ RUST_FLAGS := -g -O
 BINS = rdump
 DEPS = -L target/deps -L target
 SRC = $(shell find src -name '*.rs' -not -path 'src/bin*')
-SQLITE3 = target/deps/$(shell $(RUSTC) --print-file-name $(SQLITE3_PATH)/src/sqlite3/lib.rs)
-LIBPOOL = target/$(shell $(RUSTC) --crate-type=lib --print-file-name src/libpool/lib.rs)
+SQLITE3 = target/deps/libsqlite3.rlib
+LIBPOOL = target/libpool.rlib
 BIN_TARGETS = $(patsubst %,target/%,$(BINS))
 TEST_TARGET = target/tests/pool
 
