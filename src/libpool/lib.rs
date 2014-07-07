@@ -1,6 +1,6 @@
 // Tmp to build the test.
 
-#![crate_id = "pool#0.1.0"]
+#![crate_name = "pool"]
 #![crate_type = "rlib"]
 #![crate_type = "dylib"]
 #![license = "MIT"]
