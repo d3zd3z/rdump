@@ -54,6 +54,8 @@ impl FilePool {
             }
         };
 
+        sql_try!(sql::sql_simple(&db, "BEGIN", []));
+
         Ok(FilePool {
             db: db,
             path: path,
@@ -138,7 +140,9 @@ impl ChunkSync for FilePool {
     }
 
     fn flush(&mut self) -> IoResult<()> {
-        fail!("TODO");
+        sql_try!(sql::sql_simple(&self.db, "COMMIT", []));
+        sql_try!(sql::sql_simple(&self.db, "BEGIN", []));
+        Ok(())
     }
 }
 
