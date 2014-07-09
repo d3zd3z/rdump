@@ -36,7 +36,7 @@ impl Kind {
 
     pub fn from_str(text: &str) -> Option<Kind> {
         if text.len() != 4 { return None; }
-        let mut result: Kind = unsafe { mem::uninitialized() };
+        let /*mut*/ result: Kind = unsafe { mem::uninitialized() };
         let raw: &mut [u8] = unsafe {
             mem::transmute(Slice { data: &result.raw, len: 4})
         };

@@ -144,11 +144,13 @@ impl<C> Schema<C> {
 /// commit will not be part of the transaction.
 ///
 /// TODO: Are savepoints useful?
+#[cfg(test)]
 pub struct Transaction<'a> {
     db: &'a Database,
     committed: bool
 }
 
+#[cfg(test)]
 impl<'a> Transaction<'a> {
     pub fn new(db: &'a Database) -> SqliteResult<Transaction<'a>> {
         try!(sql_simple(db, "BEGIN TRANSACTION", &[]));
@@ -179,6 +181,7 @@ impl<'a> Transaction<'a> {
     }
 }
 
+#[cfg(test)]
 #[unsafe_destructor]
 impl<'a> Drop for Transaction<'a> {
     fn drop(&mut self) {

@@ -29,6 +29,7 @@ pub fn create(path: &Path) -> IoResult<()> {
 
 pub struct FilePool {
     db: sql::Database,
+    #[allow(dead_code)]
     path: Path,
     uuid: Uuid,
 }
@@ -67,8 +68,7 @@ impl FilePool {
 impl Collection for FilePool {
     fn len(&self) -> uint {
         // Not sure how useful this really is.
-        match (sql::sql_one(&self.db,
-                            "SELECT count(*) FROM blobs", [])) {
+        match sql::sql_one(&self.db, "SELECT count(*) FROM blobs", []) {
             Err(e) => fail!("SQL error: {}", e),
             Ok(None) => fail!("Unable to query rows"),
             Ok(Some(elts)) => match elts.as_slice() {
@@ -135,7 +135,7 @@ impl ChunkSource for FilePool {
 }
 
 impl ChunkSync for FilePool {
-    fn add(&mut self, chunk: &Chunk) -> IoResult<()> {
+    fn add(&mut self, _chunk: &Chunk) -> IoResult<()> {
         fail!("TODO");
     }
 
