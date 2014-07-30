@@ -48,8 +48,8 @@ pub fn sql_one(db: &Database, sql: &str, values: &[BindArg]) -> SqliteResult<Opt
                 let res = match cur.get_column_type(i) {
                     SQLITE_INTEGER => Integer(cur.get_int(i)),
                     SQLITE_FLOAT   => Float64(cur.get_f64(i)),
-                    SQLITE_TEXT    => Text(cur.get_text(i)),
-                    SQLITE_BLOB    => Blob(cur.get_blob(i)),
+                    SQLITE_TEXT    => Text(cur.get_text(i).unwrap().to_string()),
+                    SQLITE_BLOB    => Blob(cur.get_blob(i).unwrap().to_vec()),
                     SQLITE_NULL    => Null
                 };
                 result.push(res);
@@ -110,7 +110,7 @@ impl<C> Schema<C> {
         let cur = try!(db.prepare("SELECT version FROM schema_version", &None));
         let version: String;
         match cur.step() {
-            SQLITE_ROW => version = cur.get_text(0),
+            SQLITE_ROW => version = cur.get_text(0).unwrap().to_string(),
             e => return Err(e)
         }
 

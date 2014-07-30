@@ -34,9 +34,9 @@ rust-all: $(BIN_TARGETS) $(TEST_TARGET)
 
 test: $(TEST_TARGET)
 
-$(SQLITE3): $(wildcard $(SQLITE3_PATH)/src/sqlite3/*.rs)
+$(SQLITE3): $(wildcard $(SQLITE3_PATH)/src/*.rs)
 	mkdir -p target/deps
-	$(RUSTC) $(RUST_FLAGS) --out-dir target/deps $(SQLITE3_PATH)/src/sqlite3/lib.rs
+	$(RUSTC) $(RUST_FLAGS) --out-dir target/deps $(SQLITE3_PATH)/src/sqlite3.rs
 
 $(LIBPOOL): $(SRC) $(SQLITE3)
 	mkdir -p target

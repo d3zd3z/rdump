@@ -122,7 +122,7 @@ impl ChunkSource for FilePool {
             match cur.step() {
                 sql::SQLITE_DONE => break,
                 sql::SQLITE_ROW => {
-                    let blob = cur.get_blob(0);
+                    let blob = cur.get_blob(0).unwrap();
                     assert!(blob.len() == 20);
                     let oid = Oid::from_raw(blob.as_slice());
                     result.push(oid);
