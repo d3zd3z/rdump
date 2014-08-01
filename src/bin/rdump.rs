@@ -4,7 +4,7 @@
 
 // Apparently, this doesn't get inhereted.
 #[phase(plugin,link)]
-extern crate libpool = "pool";
+extern crate libpool = "libpool";
 
 // So bring in the fourcc plugin as well.
 #[phase(plugin)]

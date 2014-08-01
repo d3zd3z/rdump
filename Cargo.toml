@@ -7,8 +7,8 @@ authors = [ "davidb@davidb.org" ]
 [dependencies.sqlite3]
 
 # Unmerged pull requests are pending.
-# git = "https://github.com/linuxfood/rustsqlite"
-path = "../rustsqlite"
+git = "https://github.com/linuxfood/rustsqlite"
+# path = "../rustsqlite"
 
 [[lib]]
 
