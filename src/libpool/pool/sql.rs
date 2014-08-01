@@ -27,7 +27,7 @@ pub fn sql_check(code: ResultCode) -> SqliteResult<()> {
 /// Execute an SQL statement, with parameters, that expects no
 /// results.
 pub fn sql_simple(db: &Database, sql: &str, values: &[BindArg]) -> SqliteResult<()> {
-    let cur = try!(db.prepare(sql, &None));
+    let mut cur = try!(db.prepare(sql, &None));
     try!(sql_check(cur.bind_params(values)));
     match cur.step() {
         SQLITE_DONE => Ok(()),
@@ -38,7 +38,7 @@ pub fn sql_simple(db: &Database, sql: &str, values: &[BindArg]) -> SqliteResult<
 /// Execute an SQL query, with parameters, that expects a single
 /// result row.
 pub fn sql_one(db: &Database, sql: &str, values: &[BindArg]) -> SqliteResult<Option<Vec<BindArg>>> {
-    let cur = try!(db.prepare(sql, &None));
+    let mut cur = try!(db.prepare(sql, &None));
     try!(sql_check(cur.bind_params(values)));
     let mut result = Vec::new();
     match cur.step() {
@@ -107,7 +107,7 @@ impl<C> Schema<C> {
     /// Check if this schema matches, and if there are any inabilities
     /// to be reported.
     pub fn check<'a>(&'a self, db: &Database) -> SqliteResult<&'a [C]> {
-        let cur = try!(db.prepare("SELECT version FROM schema_version", &None));
+        let mut cur = try!(db.prepare("SELECT version FROM schema_version", &None));
         let version: String;
         match cur.step() {
             SQLITE_ROW => version = cur.get_text(0).unwrap().to_string(),
@@ -263,7 +263,7 @@ mod test {
     }
 
     fn check_numbers(db: &super::Database) -> SqliteResult<HashSet<int>> {
-        let cur = try!(db.prepare("SELECT id FROM foo", &None));
+        let mut cur = try!(db.prepare("SELECT id FROM foo", &None));
         let mut result = HashSet::new();
         loop {
             match cur.step() {

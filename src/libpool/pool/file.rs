@@ -115,7 +115,7 @@ impl ChunkSource for FilePool {
     }
 
     fn backups(&self) -> IoResult<Vec<Oid>> {
-        let cur = sql_try!(self.db.prepare("
+        let mut cur = sql_try!(self.db.prepare("
             SELECT oid FROM blobs WHERE kind = 'back'", &None));
         let mut result = Vec::new();
         loop {
