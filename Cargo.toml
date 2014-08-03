@@ -19,3 +19,4 @@ crate_type = ["dylib", "rlib"]
 [[bin]]
 
 name = "rdump"
+test = false
