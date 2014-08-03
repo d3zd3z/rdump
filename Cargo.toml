@@ -10,6 +10,9 @@ authors = [ "davidb@davidb.org" ]
 git = "https://github.com/linuxfood/rustsqlite"
 # path = "../rustsqlite"
 
+[dependencies.uuid]
+git = "https://github.com/rust-lang/uuid"
+
 [[lib]]
 
 name = "libpool"
