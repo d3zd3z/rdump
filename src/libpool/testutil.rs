@@ -116,12 +116,12 @@ mod test {
     use super::TempDir;
     use test::Bencher;
 
-    macro_rules! check( ($e:expr) => (
+    macro_rules! check( ($e:expr) => {
         match $e {
             Ok(t) => t,
             Err(e) => fail!("{} failed with: {}", stringify!($e), e),
         }
-    ) )
+    } );
 
     #[test]
     fn random_strings() {

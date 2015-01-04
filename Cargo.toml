@@ -4,16 +4,20 @@ name = "rdump"
 version = "0.1.0"
 authors = [ "davidb@davidb.org" ]
 
-[dependencies.sqlite3]
+[dependencies]
+fourcc = "*"
+rustc-serialize = "*"
+# uuid = "*"
 
+# [dependencies.sqlite3]
 # Unmerged pull requests are pending.
-git = "https://github.com/linuxfood/rustsqlite"
+# git = "https://github.com/linuxfood/rustsqlite"
 # path = "../rustsqlite"
 
-[dependencies.uuid]
-git = "https://github.com/rust-lang/uuid"
+# [dependencies.uuid]
+# git = "https://github.com/rust-lang/uuid"
 
-[[lib]]
+[lib]
 
 name = "libpool"
 path = "src/libpool/lib.rs"

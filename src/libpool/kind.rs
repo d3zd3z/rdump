@@ -9,8 +9,9 @@
 use core::raw::Slice;
 use std::mem;
 use std::fmt;
+use std::slice::bytes;
 
-#[deriving(PartialEq)]
+#[derive(PartialEq, Copy)]
 pub struct Kind {
     pub raw: u32
 }
@@ -23,10 +24,30 @@ macro_rules! kind(
             raw: fourcc!($k, target)
         }
     );
-)
+);
 
 impl Kind {
     // View as byte array.
+    pub fn as_bytes<'a>(&self) -> &'a [u8] {
+        unsafe {
+            mem::transmute(Slice {
+                data: &self.raw,
+                len: 4,
+            })
+        }
+    }
+
+    pub fn as_mut_bytes<'a>(&mut self) -> &'a mut [u8] {
+        unsafe {
+            mem::transmute(Slice {
+                data: &self.raw,
+                len: 4,
+            })
+        }
+    }
+
+    // This is from when lifetimes didn't work as well.
+    #[deprecated = "use `.as_bytes()` instead"]
     pub fn to_bytes<U>(self, f: |v: &[u8]| -> U) -> U {
         let buf: &[u8] = unsafe {
             mem::transmute(Slice { data: &self.raw, len: 4 })
@@ -36,11 +57,9 @@ impl Kind {
 
     pub fn from_str(text: &str) -> Option<Kind> {
         if text.len() != 4 { return None; }
-        let /*mut*/ result: Kind = unsafe { mem::uninitialized() };
-        let raw: &mut [u8] = unsafe {
-            mem::transmute(Slice { data: &result.raw, len: 4})
-        };
-        raw.copy_from(text.as_bytes());
+        let mut result: Kind = unsafe { mem::uninitialized() };
+        bytes::copy_memory(result.as_mut_bytes(), text.as_bytes());
+
         Some(result)
     }
 
@@ -48,13 +67,13 @@ impl Kind {
     // representation of this kind.
     pub fn bytes(self) -> Vec<u8> {
         let mut result = Vec::with_capacity(4);
-        self.to_bytes(|v| result.push_all(v));
+        result.push_all(self.as_bytes());
         result
     }
 
     // This isn't 'ToStr' to integrate better with fmt.
     pub fn textual(&self) -> String {
-        String::from_utf8(self.bytes()).unwrap_or_else(|_| "????".to_string())
+        String::from_utf8(self.clone().bytes()).unwrap_or_else(|_| "????".to_string())
     }
 }
 

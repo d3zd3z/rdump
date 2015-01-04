@@ -12,7 +12,7 @@ use oid::Oid;
 use uuid::Uuid;
 
 // Like try!(), but remaps the SQL error to an IoResult.
-macro_rules! sql_try( ($e:expr) => ( try!($e.map_err(sql::to_ioerror))))
+macro_rules! sql_try( ($e:expr) => ( try!($e.map_err(sql::to_ioerror))));
 
 pub fn create(path: &Path) -> IoResult<()> {
     try!(fs::mkdir(path, io::UserRWX));

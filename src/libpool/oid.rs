@@ -8,11 +8,14 @@
 
 use std::fmt;
 use std::mem;
+use std::slice::bytes;
 
 use kind::Kind;
+use rustc_serialize::hex::{ToHex,FromHex};
 
+#[derive(Copy)]
 pub struct Oid {
-    pub bytes: [u8, ..20],
+    pub bytes: [u8; 20],
 }
 
 impl PartialEq for Oid {
@@ -35,6 +38,7 @@ mod openssl {
 
     // Despite the type name in the SSL header, these are expected to
     // all be 32-bit values.
+    #[repr(C)]
     pub struct ShaCtx {
         _h0: uint32_t,
         _h1: uint32_t,
@@ -43,7 +47,7 @@ mod openssl {
         _h4: uint32_t,
         _nl: uint32_t,
         _nh: uint32_t,
-        _data: [uint32_t, ..16],
+        _data: [uint32_t; 16],
         _num: c_uint,
     }
 
@@ -81,7 +85,7 @@ impl Context {
         }
     }
 
-    fn final(&mut self) -> Oid {
+    fn finish(&mut self) -> Oid {
         unsafe {
             let mut result: Oid = mem::uninitialized();
             openssl::SHA1_Final(&mut result.bytes[0], &mut self.core);
@@ -95,7 +99,7 @@ impl Context {
 fn context() {
     let mut buf = Context::init();
     buf.update(&[65u8]);
-    let id = buf.final();
+    let id = buf.finish();
     assert!(id.to_hex() == "6dcd4ce23d88e2ee9568ba546c007c63d9131c1b".to_string());
 }
 
@@ -145,7 +149,7 @@ fn tweaker(input: &str, expect: &str, amount: int) {
         tmp += 1;
     }
     if Oid::from_hex(expect).unwrap() != work {
-        fail!("Expecting {}, but got {}, amount {}",
+        panic!("Expecting {}, but got {}, amount {}",
               expect, work.to_hex(), amount);
     }
     // assert!(Oid::from_hex(expect).unwrap() == work);
@@ -196,11 +200,8 @@ impl Oid {
     // TODO: Use serialize::hex instead of implementing this
     // ourselves.
     pub fn to_hex(&self) -> String {
-        let mut result = String::new();
-        for i in range(0u, 20) {
-            result.push_str(format!("{:02x}", self.bytes[i]).as_slice());
-        }
-        result
+        // TODO: self.bytes[].to_hex()
+        self.bytes.as_slice().to_hex()
     }
 
     // TODO: Use serialize::hex instead of implementing this
@@ -209,30 +210,23 @@ impl Oid {
         if text.len() != 40 {
             return None
         }
-        let bytes = text.as_bytes();
-        let mut result: Oid = unsafe { mem::uninitialized() };
-        for (i, ch) in bytes.chunks(2).enumerate() {
-            match ::std::u8::parse_bytes(ch, 16) {
-                None => return None,
-                Some(b) => result.bytes[i] = b,
-            }
-        }
-        Some(result)
+
+        text.from_hex().ok().map(|x| Oid::from_raw(x.as_slice()))
     }
 
     pub fn from_data(kind: Kind, data: &[u8]) -> Oid {
         let mut ctx = Context::init();
-        kind.to_bytes(|v| ctx.update(v));
+        ctx.update(kind.as_bytes());
         ctx.update(data);
-        ctx.final()
+        ctx.finish()
     }
 
     pub fn from_raw(bytes: &[u8]) -> Oid {
         if bytes.len() != 20 {
-            fail!("OID is incorrect length");
+            panic!("OID is incorrect length");
         }
         let mut result: Oid = unsafe { mem::uninitialized() };
-        result.bytes.copy_from(bytes);
+        bytes::copy_memory(result.bytes.as_mut_slice(), bytes);
         result
     }
 
