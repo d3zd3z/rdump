@@ -1,17 +1,18 @@
 # Simple case, build test framework
 
-all: rust-all
+all: cargo-all
+test: cargo-test
 
 # Cargo doesn't give much control over the build, and doesn't quite
 # get it right, either.
 CARGO = cargo
-CARGO_TEST = cargo-test
+CARGO_TEST = cargo test
 
 cargo-all:
-	$(CARGO) build -v
+	$(CARGO) build
 
 cargo-test:
-	$(CARGO_TEST) -v
+	$(CARGO_TEST)
 
 .PHONY: all test
 
@@ -32,7 +33,7 @@ TEST_TARGET = target/tests/pool
 
 rust-all: $(BIN_TARGETS) $(TEST_TARGET)
 
-test: $(TEST_TARGET)
+# test: $(TEST_TARGET)
 
 $(SQLITE3): $(wildcard $(SQLITE3_PATH)/src/*.rs)
 	mkdir -p target/deps
