@@ -3,19 +3,22 @@
 #![feature(phase)]
 
 // Apparently, this doesn't get inhereted.
-// #[phase(plugin,link)]
-// extern crate libpool = "libpool";
+#[phase(plugin,link)]
+extern crate libpool;
 
 // So bring in the fourcc plugin as well.
-// #[phase(plugin)]
-// extern crate fourcc;
+#[phase(plugin)]
+extern crate fourcc;
 
 use std::os;
 // use libpool::pool;
 // use libpool::chunk::Chunk;
 // use libpool::pdump::HexDump;
 
+use libpool::kind::Kind;
+
 fn main() {
+    println!("Kind: {}", kind!("Foob"));
     let args = os::args();
     let args = args.tail();
     match args {
@@ -30,14 +33,14 @@ fn main() {
     };
 }
 
-fn create(path: &str) {
+fn create(_path: &str) {
     // match pool::create(&Path::new(path)) {
     //     Ok(()) => (),
     //     Err(e) => panic!("Unable to create pool: {}", e)
     // };
 }
 
-fn list(path: &str) {
+fn list(_path: &str) {
     // let p = pool::open(Path::new(path)).unwrap();
 
     // println!("Pool has {} chunks", p.len());

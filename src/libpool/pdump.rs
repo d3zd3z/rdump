@@ -27,10 +27,10 @@ impl Dumper {
             self.ship();
         }
         if self.count == 8 {
-            self.hex.push_char(' ');
+            self.hex.push(' ');
         }
         self.hex.push_str(format!(" {:02x}", ch).as_slice());
-        self.ascii.push_char(
+        self.ascii.push(
             if ch >= ' ' as u8 && ch <= '~' as u8 {
                 ch as char
             } else {
@@ -44,7 +44,7 @@ impl Dumper {
             return;
         }
 
-        println!("{:06x} {:-49s} |{:s}|", self.total_count, self.hex, self.ascii);
+        println!("{:06x} {:-49} |{}|", self.total_count, self.hex, self.ascii);
 
         self.hex.clear();
         self.ascii.clear();

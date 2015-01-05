@@ -20,6 +20,7 @@ pub struct Kind {
 #[macro_export]
 macro_rules! kind(
     ($k:expr) => (
+        // TODO: This isn't hygienic.
         Kind {
             raw: fourcc!($k, target)
         }

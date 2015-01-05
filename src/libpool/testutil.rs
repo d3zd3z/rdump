@@ -1,10 +1,11 @@
 // Test utilities.
 
-use collections::treemap::TreeSet;
+use std::collections::BTreeSet;
+use std::fmt::Writer;
 
 // A short list of words to help generate reasonably compressible
 // data.
-static word_list: &'static [&'static str] = &[
+static WORD_LIST: &'static [&'static str] = &[
   "the", "be", "to", "of", "and", "a", "in", "that", "have", "I",
   "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
   "this", "but", "his", "by", "from", "they", "we", "say", "her",
@@ -21,13 +22,13 @@ pub fn make_random_string(size: uint, index: uint) -> String {
     // Allow 5 characters to allow room for a full word to be
     // appended, beyond the desired length.
     let mut result = String::with_capacity(size + 6);
-    result.push_str(format!("{:u}-{:u}", index, size).as_slice());
+    let _ = write!(&mut result, "{}-{}", index, size);
 
     let mut gen = SimpleRandom::new(index);
 
     while result.len() < size {
-        result.push_char(' ');
-        result.push_str(word_list[gen.next(word_list.len())]);
+        result.push(' ');
+        result.push_str(WORD_LIST[gen.next(WORD_LIST.len())]);
     }
 
     result.truncate(size);
@@ -37,7 +38,7 @@ pub fn make_random_string(size: uint, index: uint) -> String {
 // Generate a useful series of sizes, build around powers of two and
 // values 1 greater or less than them.
 pub fn boundary_sizes() -> Vec<uint> {
-    let mut nums: TreeSet<uint> = TreeSet::new();
+    let mut nums: BTreeSet<uint> = BTreeSet::new();
 
     for i in range(0u, 19) {
         let bit = 1u << i;
@@ -67,59 +68,17 @@ impl SimpleRandom {
     }
 }
 
-// Tempdir.
-pub struct TempDir(Path);
-
-impl TempDir {
-    pub fn new() -> TempDir {
-        use std::{io, rand, os};
-
-        for _ in range(0u, 10) {
-            // TODO: This might fail, if dirs get left behind.
-            let path = os::tmpdir().join(format!("rdump-{}", rand::random::<u32>()));
-            match io::fs::mkdir(&path, io::UserRWX) {
-                Ok(_) => return TempDir(path),
-                Err(_) => ()
-            };
-        }
-        fail!("Unable to create tmpdir");
-    }
-
-    pub fn join(&self, path: &str) -> Path {
-        let TempDir(ref p) = *self;
-        p.join(path)
-    }
-
-    pub fn path<'a>(&'a self) -> &'a Path {
-        let TempDir(ref p) = *self;
-        p
-    }
-}
-
-impl Drop for TempDir {
-    fn drop(&mut self) {
-        use std::io;
-
-        let TempDir(ref p) = *self;
-        match io::fs::rmdir_recursive(p) {
-            Ok(_) => (),
-            Err(e) => fail!("Unable to remove tmpdir: {} ({})", p.display(), e)
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
-    use std::collections::hashmap::HashSet;
+    use std::collections::HashSet;
     use super::make_random_string;
     use super::boundary_sizes;
-    use super::TempDir;
     use test::Bencher;
 
     macro_rules! check( ($e:expr) => {
         match $e {
             Ok(t) => t,
-            Err(e) => fail!("{} failed with: {}", stringify!($e), e),
+            Err(e) => panic!("{} failed with: {}", stringify!($e), e),
         }
     } );
 
@@ -164,18 +123,21 @@ mod test {
     #[test]
     fn test_tmpdir() {
         use std::{io, path};
+        use std::io::TempDir;
+
         let path: path::Path;
         {
-            let tmp = TempDir::new();
+            let tmp = TempDir::new("testutil").unwrap();
             path = tmp.path().clone();
-            check!(io::fs::mkdir(&tmp.join("subdir"),
-                (io::UserRead | io::UserWrite)));
-            assert!(check!(io::fs::lstat(&tmp.join("subdir"))).kind == io::TypeDirectory);
+            check!(io::fs::mkdir(&path.join("subdir"),
+                (io::USER_READ | io::USER_WRITE)));
+            assert!(check!(io::fs::lstat(&path.join("subdir"))).kind == io::FileType::Directory);
+            // println!("Tmp: '{}'", path.display());
         }
 
         // Make sure it goes away when the TempDir goes out of scope.
         match io::fs::lstat(&path) {
-            Ok(_) => fail!("Directory should have been removed"),
+            Ok(_) => panic!("Directory should have been removed"),
             Err(_) => ()
         };
     }

@@ -17,7 +17,7 @@
 extern crate core;
 extern crate libc;
 // extern crate collections;
-// extern crate flate;
+extern crate flate;
 // extern crate uuid;
 // extern crate sqlite3;
 extern crate "rustc-serialize" as rustc_serialize;
@@ -25,19 +25,19 @@ extern crate "rustc-serialize" as rustc_serialize;
 #[phase(plugin)]
 extern crate fourcc;
 
-// #[phase(plugin, link)]
-// extern crate log;
+#[phase(plugin, link)]
+extern crate log;
 
 #[cfg(test)]
 extern crate test;
 
-// #[cfg(test)]
-// mod testutil;
+#[cfg(test)]
+mod testutil;
 
-// #[cfg(test)]
-// pub mod pdump;
+#[cfg(test)]
+pub mod pdump;
 
 pub mod kind;
 pub mod oid;
-// pub mod chunk;
+pub mod chunk;
 // pub mod pool;
