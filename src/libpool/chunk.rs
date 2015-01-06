@@ -5,10 +5,7 @@ use oid::Oid;
 use std::cell::RefCell;
 use std::cell::Ref as CellRef;
 
-use flate::deflate_bytes_zlib;
-/*
 use flate::{deflate_bytes_zlib, inflate_bytes_zlib};
-*/
 
 #[cfg(test)]
 use pdump::HexDump;
@@ -55,6 +52,7 @@ pub trait Chunk {
 pub enum Data<'a> {
     Ptr(&'a [u8]),
     Cell(CellRef<'a, Compressed>),
+    VecCell(CellRef<'a, Option<Vec<u8>>>),
 }
 
 // For now, just implement AsSlice and anything else can be determined by the
@@ -68,7 +66,13 @@ impl<'b> AsSlice<u8> for Data<'b> {
                     Compressed::Compressed(ref p) => p.as_slice(),
                     _ => unreachable!(),
                 }
-            }
+            },
+            Data::VecCell(ref v) => {
+                match **v {
+                    Some(ref p) => p.as_slice(),
+                    _ => unreachable!(),
+                }
+            },
         }
     }
 }
@@ -83,12 +87,12 @@ pub fn new_plain(kind: Kind, data: Vec<u8>) -> Box<Chunk + 'static> {
 pub fn new_plain_with_oid(kind: Kind, oid: Oid, data: Vec<u8>) -> Box<Chunk> {
     box PlainChunk::new_with_oid(kind, oid, data) as Box<Chunk>
 }
+*/
 
 // Construct a chunk from compressed data.
-pub fn new_compressed(kind: Kind, oid: Oid, zdata: Vec<u8>, data_len: uint) -> Box<Chunk> {
-    box CompressedChunk::new(kind, oid, zdata, data_len) as Box<Chunk>
+pub fn new_compressed(kind: Kind, oid: Oid, zdata: Vec<u8>, data_len: uint) -> Box<Chunk + 'static> {
+    box CompressedChunk::new(kind, oid, zdata, data_len) as Box<Chunk + 'static>
 }
-*/
 
 // There are different implementations of chunks, depending on where
 // the data came from.  First, are Chunks derived from plain
@@ -105,6 +109,9 @@ struct PlainChunk {
     zdata_: RefCell<Compressed>,
 }
 
+// There are pros and cons of having this data in a single enum, rather than
+// having an additional Cell that holds the state.  This case makes access a
+// little more complicated, but simplifies use.
 pub enum Compressed {
     Untried,
     Uncompressible,
@@ -183,7 +190,6 @@ impl Chunk for PlainChunk {
     }
 }
 
-/*
 struct CompressedChunk {
     kind: Kind,
     oid: Oid,
@@ -214,39 +220,37 @@ impl Chunk for CompressedChunk {
         &self.oid
     }
 
-    fn with_data(&self, f: |v: &[u8]|) {
-        match *self.data.borrow() {
-            Some(ref v) => return f(v.as_slice()),
-            None => ()
-        };
+    fn data<'a>(&'a self) -> Data<'a> {
+        {
+            let cell = self.data.borrow();
+            match *cell {
+                Some(_) => return Data::VecCell(cell),
+                _ => ()
+            }
+        }
 
-        // Need to decompress.
         *self.data.borrow_mut() = Some({
             match inflate_bytes_zlib(self.zdata.as_slice()) {
                 None => panic!("zlib unable to inflate"),
-                Some(buf) => Vec::from_slice(buf.as_slice())
+                Some(buf) => buf.as_slice().to_vec(),
             }
         });
 
-        match *self.data.borrow() {
-            Some(ref v) => f(v.as_slice()),
-            None => unreachable!()
-        };
+        self.data()
     }
 
     fn data_len(&self) -> uint {
         self.data_len
     }
 
-    fn with_zdata(&self, f: |v: Option<&[u8]>|) {
-        f(Some(self.zdata.as_slice()))
+    fn zdata<'a>(&'a self) -> Option<Data<'a>> {
+        Some(Data::Ptr(self.zdata.as_slice()))
     }
 }
-*/
 
 #[cfg(test)]
 mod test {
-    use super::{new_plain};
+    use super::{new_plain, new_compressed};
     use testutil::{boundary_sizes, make_random_string};
     use flate::inflate_bytes_zlib;
 
@@ -268,44 +272,17 @@ mod test {
                     Some(raw) => assert!(raw.as_slice() == p1.as_bytes()),
                 };
 
-                // TODO: Test making a compressed chunk out of the compressed data.
+                // Make a new chunk out of the compressed data.
+                let c2 = new_compressed(c1.kind(), c1.oid().clone(), comp.as_slice().to_vec(), c1.data_len());
+                assert!(c1.kind() == c2.kind());
+                assert!(c1.oid() == c2.oid());
+
+                assert!(c1.data().as_slice() == c2.data().as_slice());
             },
         }
 
         // c1.dump();
     }
-
-    /*
-    // use super::*; // Do we want this?
-    use super::{new_compressed, new_plain};
-    use testutil::{boundary_sizes, make_random_string};
-    use flate::inflate_bytes_zlib;
-
-    fn single_chunk(index: uint) {
-        let p1 = make_random_string(index, index);
-        let c1 = new_plain(kind!("blob"), Vec::from_slice(p1.as_bytes()));
-        assert!(c1.kind() == kind!("blob"));
-        c1.with_data(|p| assert!(p == p1.as_bytes()));
-
-        c1.with_zdata(|p| match p {
-            None => (),  // Fine if not compressible.
-            Some(comp) => {
-                match inflate_bytes_zlib(comp) {
-                    None => panic!("Unable to decompress data"),
-                    Some(raw) => assert!(raw.as_slice() == p1.as_bytes())
-                };
-
-                let c2 = new_compressed(c1.kind(), c1.oid().clone(), Vec::from_slice(comp), c1.data_len());
-                assert!(c1.kind() == c2.kind());
-                assert!(c1.oid() == c2.oid());
-                c1.with_data(|v1| {
-                    c2.with_data(|v2| assert!(v1 == v2))
-                });
-            }
-        });
-        // c1.dump();
-    }
-    */
 
     #[test]
     fn basic() {
