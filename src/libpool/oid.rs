@@ -13,23 +13,9 @@ use std::slice::bytes;
 use kind::Kind;
 use rustc_serialize::hex::{ToHex,FromHex};
 
-#[derive(Copy)]
+#[derive(Copy, PartialEq, PartialOrd, Eq, Ord, Clone, Hash)]
 pub struct Oid {
     pub bytes: [u8; 20],
-}
-
-impl PartialEq for Oid {
-    fn eq(&self, other: &Oid) -> bool {
-        self.bytes == other.bytes
-    }
-}
-
-impl Clone for Oid {
-    fn clone(&self) -> Oid {
-        let mut result: Oid = unsafe { mem::uninitialized() };
-        result.bytes = self.bytes;
-        result
-    }
 }
 
 mod openssl {
@@ -253,9 +239,65 @@ fn invalid_oid() {
 mod test {
     use test::Bencher;
     use super::{Oid};
+    use std::collections::{BTreeMap, HashMap};
 
     #[bench]
     fn int_generation(b: &mut Bencher) {
         b.iter(|| Oid::from_uint(12345));
+    }
+
+    const ITERATIONS: uint = 1000;
+
+    // Initial results:
+    //  1000: 6562 ns each
+    // 10000: 8968
+    // ... This gets very slow as it gets larger.
+    #[cfg(never)]
+    #[bench]
+    fn btree_hashes(b: &mut Bencher) {
+        let mut map = BTreeMap::new();
+        let mut oids = vec!();
+
+        for i in range(0, ITERATIONS) {
+            oids.push(Oid::from_uint(i));
+        }
+
+        b.iter(|| {
+            for (i, oid) in oids.iter().enumerate() {
+                map.insert(*oid, i);
+            }
+
+            for (i, oid) in oids.iter().enumerate() {
+                assert!(map.get(oid) == Some(&i));
+            }
+
+            map.clear();
+        });
+    }
+
+    // Initial results:
+    //   1000: 3517 ns each
+    //  10000: 3755
+    // 100000: 4089
+    #[bench]
+    fn hash_hashes(b: &mut Bencher) {
+        let mut map = HashMap::new();
+        let mut oids = vec!();
+
+        for i in range(0, ITERATIONS) {
+            oids.push(Oid::from_uint(i));
+        }
+
+        b.iter(|| {
+            for (i, oid) in oids.iter().enumerate() {
+                map.insert(*oid, i);
+            }
+
+            for (i, oid) in oids.iter().enumerate() {
+                assert!(map.get(oid) == Some(&i));
+            }
+
+            map.clear();
+        });
     }
 }
