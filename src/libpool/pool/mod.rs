@@ -1,17 +1,18 @@
 // The traits that define a backup pool.
 
-use oid::Oid;
-use chunk::Chunk;
+// use oid::Oid;
+// use chunk::Chunk;
 
-use std::io::{fs, IoResult};
-use uuid::Uuid;
+// use std::io::{fs, IoResult};
+// use uuid::Uuid;
 
-pub use self::file::create;
-use self::file::FilePool;
+// pub use self::file::create;
+// use self::file::FilePool;
 
 mod sql;
-mod file;
+// mod file;
 
+/*
 /// A source of chunks.  This is similar to a `Map`, except that the
 /// values aren't kept in memory, so we have to return real items
 /// rather than references to them.
@@ -65,3 +66,4 @@ mod test {
         // println!("uuid: {}", pool.uuid().to_hyphenated_str());
     }
 }
+*/

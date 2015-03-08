@@ -4,7 +4,7 @@
 //!
 //! Kinds are basically fourcc strings with the local endianness.
 
-#![macro_escape]
+#![macro_use]
 
 use core::raw::Slice;
 use std::mem;
@@ -21,7 +21,7 @@ pub struct Kind {
 macro_rules! kind(
     ($k:expr) => (
         // TODO: This isn't hygienic.
-        Kind {
+        $crate::kind::Kind {
             raw: fourcc!($k, target)
         }
     );
@@ -49,7 +49,8 @@ impl Kind {
 
     // This is from when lifetimes didn't work as well.
     #[deprecated = "use `.as_bytes()` instead"]
-    pub fn to_bytes<U>(self, f: |v: &[u8]| -> U) -> U {
+    pub fn to_bytes<U, F>(self, mut f: F) -> U
+        where F: FnMut(&[u8]) -> U {
         let buf: &[u8] = unsafe {
             mem::transmute(Slice { data: &self.raw, len: 4 })
         };
@@ -78,7 +79,7 @@ impl Kind {
     }
 }
 
-impl fmt::Show for Kind {
+impl fmt::Debug for Kind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "'{}'", self.textual())
     }

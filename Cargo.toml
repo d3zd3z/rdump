@@ -7,23 +7,19 @@ authors = [ "davidb@davidb.org" ]
 [dependencies]
 fourcc = "*"
 rustc-serialize = "*"
-# uuid = "*"
+# sqlite3 = "*"
+uuid = "*"
 
 # [dependencies.sqlite3]
-# Unmerged pull requests are pending.
-# git = "https://github.com/linuxfood/rustsqlite"
-# path = "../rustsqlite"
-
-# [dependencies.uuid]
-# git = "https://github.com/rust-lang/uuid"
+# path = "lib/sqlite3"
 
 [lib]
 
 name = "libpool"
 path = "src/libpool/lib.rs"
-crate_type = ["dylib", "rlib"]
+# crate_type = ["dylib", "rlib"]
+crate_type = ["rlib"]
 
 [[bin]]
-
 name = "rdump"
 test = false

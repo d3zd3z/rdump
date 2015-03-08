@@ -1,35 +1,33 @@
 // Main dump program.
 
-#![feature(phase)]
+#![feature(collections)]
+#![feature(plugin)]
+#![plugin(fourcc)]
 
 // Apparently, this doesn't get inhereted.
-#[phase(plugin,link)]
+#[macro_use]
 extern crate libpool;
+// #[plugin(libpool)]
 
-// So bring in the fourcc plugin as well.
-#[phase(plugin)]
-extern crate fourcc;
-
-use std::os;
+use std::env;
 // use libpool::pool;
 // use libpool::chunk::Chunk;
 // use libpool::pdump::HexDump;
 
-use libpool::kind::Kind;
-
 fn main() {
-    println!("Kind: {}", kind!("Foob"));
-    let args = os::args();
+    println!("Hello world");
+    println!("Kind: {:?}", kind!("Foob"));
+    let args: Vec<_> = env::args().collect();
     let args = args.tail();
     match args {
         [] => panic!("Expecting command"),
         _ => ()
     };
 
-    match (args[0].as_slice(), args.tail()) {
-        ("create", [ref path]) => create(path.as_slice()),
-        ("list", [ref path]) => list(path.as_slice()),
-        (ref cmd, e) => panic!("Unknown args: {} {}", cmd, e)
+    match (&args[0][..], &args[1..]) {
+        ("create", [ref path]) => create(&path[..]),
+        ("list", [ref path]) => list(&path[..]),
+        (ref cmd, e) => panic!("Unknown args: {} {:?}", cmd, e)
     };
 }
 

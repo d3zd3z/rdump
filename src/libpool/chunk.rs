@@ -63,13 +63,13 @@ impl<'b> AsSlice<u8> for Data<'b> {
             Data::Ptr(v) => v,
             Data::Cell(ref v) => {
                 match **v {
-                    Compressed::Compressed(ref p) => p.as_slice(),
+                    Compressed::Compressed(ref p) => &p[],
                     _ => unreachable!(),
                 }
             },
             Data::VecCell(ref v) => {
                 match **v {
-                    Some(ref p) => p.as_slice(),
+                    Some(ref p) => &p[],
                     _ => unreachable!(),
                 }
             },
@@ -79,7 +79,7 @@ impl<'b> AsSlice<u8> for Data<'b> {
 
 // Construct a plain chunk by taking the given data.
 pub fn new_plain(kind: Kind, data: Vec<u8>) -> Box<Chunk + 'static> {
-    box PlainChunk::new(kind, data) as Box<Chunk + 'static>
+    Box::new(PlainChunk::new(kind, data))
 }
 
 /*
@@ -91,7 +91,7 @@ pub fn new_plain_with_oid(kind: Kind, oid: Oid, data: Vec<u8>) -> Box<Chunk> {
 
 // Construct a chunk from compressed data.
 pub fn new_compressed(kind: Kind, oid: Oid, zdata: Vec<u8>, data_len: uint) -> Box<Chunk + 'static> {
-    box CompressedChunk::new(kind, oid, zdata, data_len) as Box<Chunk + 'static>
+    Box::new(CompressedChunk::new(kind, oid, zdata, data_len))
 }
 
 // There are different implementations of chunks, depending on where
@@ -253,10 +253,6 @@ mod test {
     use super::{new_plain, new_compressed};
     use testutil::{boundary_sizes, make_random_string};
     use flate::inflate_bytes_zlib;
-
-    // TODO: This shouldn't be needed, but seems to be for the macro
-    // to work.
-    use kind::Kind;
 
     fn single_chunk(index: uint) {
         let p1 = make_random_string(index, index);

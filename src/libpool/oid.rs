@@ -176,7 +176,7 @@ fn test_tweak() {
             -1);
 }
 
-impl fmt::Show for Oid {
+impl fmt::Debug for Oid {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.bytes[0])
     }
@@ -217,7 +217,7 @@ impl Oid {
     }
 
     // Generate an Oid from the textual representation of an int.
-    pub fn from_uint(item: uint) -> Oid {
+    pub fn from_uint(item: u32) -> Oid {
         Oid::from_data(kind!("blob"), format!("{}", item).as_bytes())
     }
 }
@@ -239,14 +239,18 @@ fn invalid_oid() {
 mod test {
     use test::Bencher;
     use super::{Oid};
-    use std::collections::{BTreeMap, HashMap};
+
+    #[cfg(never)]
+    use std::collections::BTreeMap;
+
+    use std::collections::HashMap;
 
     #[bench]
     fn int_generation(b: &mut Bencher) {
         b.iter(|| Oid::from_uint(12345));
     }
 
-    const ITERATIONS: uint = 1000;
+    const ITERATIONS: u32 = 1000;
 
     // Initial results:
     //  1000: 6562 ns each
