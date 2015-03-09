@@ -93,11 +93,11 @@ fn context() {
 impl Oid {
     // When testing, it is useful to produce a tweaked Oid that is
     // slightly larger or smaller than the given one.
-    fn tweak(&self, adjust: int, stop: u8) -> Oid {
+    fn tweak(&self, adjust: i16, stop: u8) -> Oid {
         let mut result = (*self).clone();
         let mut pos = 19;
         loop {
-            let tmp = (result.bytes[pos] as int + adjust) as u8;
+            let tmp = (result.bytes[pos] as i16 + adjust) as u8;
             result.bytes[pos] = tmp;
             if tmp == stop {
                 if pos == 0 {
@@ -123,7 +123,7 @@ impl Oid {
 }
 
 #[cfg(test)]
-fn tweaker(input: &str, expect: &str, amount: int) {
+fn tweaker(input: &str, expect: &str, amount: i16) {
     let mut work = Oid::from_hex(input).unwrap();
     let mut tmp = amount;
     while tmp > 0 {

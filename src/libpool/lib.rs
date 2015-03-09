@@ -7,6 +7,17 @@
 #![plugin(fourcc)]
 #![feature(plugin)]
 
+// Needed for raw manipulation in kind.  Maybe shouldn't use?
+#![feature(core)]
+
+// Collections aren't considered stable yet.
+#![feature(collections)]
+
+// Needed for libc
+#![feature(libc)]
+
+#![cfg_attr(test, feature(test))]
+
 // Needed during alpha/beta transition of rustc.
 // #![feature(int_uint)]
 // #![allow(unstable)]
@@ -22,24 +33,26 @@
 /// Rust dump
 
 extern crate core;
-/*
 extern crate libc;
-// extern crate collections;
-extern crate flate;
-extern crate uuid;
-extern crate sqlite3;
+// // extern crate collections;
+// extern crate flate;
+// extern crate uuid;
+// extern crate sqlite3;
 extern crate "rustc-serialize" as rustc_serialize;
 
+/*
 // #[macro_use] // #[no_link]
 #[plugin]
 extern crate fourcc;
 
 #[macro_use]
 extern crate log;
+*/
 
 #[cfg(test)]
 extern crate test;
 
+/*
 #[cfg(test)]
 mod testutil;
 
@@ -48,9 +61,8 @@ pub mod pdump;
 */
 
 pub mod kind;
-/*
 pub mod oid;
+/*
 pub mod chunk;
 pub mod pool;
-
 */

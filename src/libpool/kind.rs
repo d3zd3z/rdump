@@ -9,18 +9,16 @@
 use core::raw::Slice;
 use std::mem;
 use std::fmt;
-use std::slice::bytes;
+use std::slice::{bytes, from_raw_parts, from_raw_parts_mut};
 
 #[derive(PartialEq, Copy)]
 pub struct Kind {
     pub raw: u32
 }
 
-// TODO: The 'Kind' reference below doesn't seem to have proper hygiene.
 #[macro_export]
 macro_rules! kind(
     ($k:expr) => (
-        // TODO: This isn't hygienic.
         $crate::kind::Kind {
             raw: fourcc!($k, target)
         }
@@ -28,22 +26,21 @@ macro_rules! kind(
 );
 
 impl Kind {
+    // TODO: Do we really need these?
     // View as byte array.
+    #[deprecated(reason = "Don't use the raw slices")]
     pub fn as_bytes<'a>(&self) -> &'a [u8] {
         unsafe {
-            mem::transmute(Slice {
-                data: &self.raw,
-                len: 4,
-            })
+            let raw = &self.raw as *const u32;
+            from_raw_parts(raw as *const u8, 4)
         }
     }
 
+    #[deprecated(reason = "Don't use the raw slices")]
     pub fn as_mut_bytes<'a>(&mut self) -> &'a mut [u8] {
         unsafe {
-            mem::transmute(Slice {
-                data: &self.raw,
-                len: 4,
-            })
+            let raw = &mut self.raw as *mut u32;
+            from_raw_parts_mut(raw as *mut u8, 4)
         }
     }
 
