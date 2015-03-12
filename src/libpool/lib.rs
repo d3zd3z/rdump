@@ -16,6 +16,10 @@
 // Needed for libc
 #![feature(libc)]
 
+#![feature(tempdir)]
+#![feature(path)]
+#![feature(fs)]
+
 #![cfg_attr(test, feature(test))]
 
 // Needed during alpha/beta transition of rustc.
@@ -44,25 +48,23 @@ extern crate "rustc-serialize" as rustc_serialize;
 // #[macro_use] // #[no_link]
 #[plugin]
 extern crate fourcc;
+*/
 
 #[macro_use]
 extern crate log;
-*/
 
 #[cfg(test)]
 extern crate test;
 
-/*
 #[cfg(test)]
 mod testutil;
 
 #[cfg(test)]
 pub mod pdump;
-*/
 
 pub mod kind;
 pub mod oid;
+// pub mod chunk;
 /*
-pub mod chunk;
 pub mod pool;
 */

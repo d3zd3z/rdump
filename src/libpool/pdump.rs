@@ -8,8 +8,8 @@ pub trait HexDump {
 struct Dumper {
     hex: String,
     ascii: String,
-    count: uint,
-    total_count: uint
+    count: usize,
+    total_count: usize
 }
 
 impl Dumper {

@@ -1,7 +1,8 @@
 // Test utilities.
 
 use std::collections::BTreeSet;
-use std::fmt::Writer;
+use std::fmt::Write;
+use std::num::wrapping::Wrapping;
 
 // A short list of words to help generate reasonably compressible
 // data.
@@ -18,30 +19,30 @@ static WORD_LIST: &'static [&'static str] = &[
 ];
 
 // Construct a random string of a given size and index.
-pub fn make_random_string(size: uint, index: uint) -> String {
+pub fn make_random_string(size: u32, index: u32) -> String {
     // Allow 5 characters to allow room for a full word to be
     // appended, beyond the desired length.
-    let mut result = String::with_capacity(size + 6);
+    let mut result = String::with_capacity(size as usize + 6);
     let _ = write!(&mut result, "{}-{}", index, size);
 
     let mut gen = SimpleRandom::new(index);
 
-    while result.len() < size {
+    while result.len() < size as usize {
         result.push(' ');
-        result.push_str(WORD_LIST[gen.next(WORD_LIST.len())]);
+        result.push_str(WORD_LIST[gen.next(WORD_LIST.len() as u32) as usize]);
     }
 
-    result.truncate(size);
+    result.truncate(size as usize);
     result
 }
 
 // Generate a useful series of sizes, build around powers of two and
 // values 1 greater or less than them.
-pub fn boundary_sizes() -> Vec<uint> {
-    let mut nums: BTreeSet<uint> = BTreeSet::new();
+pub fn boundary_sizes() -> Vec<u32> {
+    let mut nums: BTreeSet<u32> = BTreeSet::new();
 
-    for i in range(0u, 19) {
-        let bit = 1u << i;
+    for i in range(0, 19) {
+        let bit = 1 << i;
         if bit > 0 {
             nums.insert(bit - 1);
         }
@@ -58,13 +59,15 @@ struct SimpleRandom {
 }
 
 impl SimpleRandom {
-    fn new(index: uint) -> SimpleRandom {
-        SimpleRandom { state: index as u32 }
+    fn new(index: u32) -> SimpleRandom {
+        SimpleRandom { state: index }
     }
 
-    fn next(&mut self, limit: uint) -> uint {
-        self.state = ((self.state * 1103515245) + 12345) & 0x7fffffff;
-        self.state as uint % limit
+    fn next(&mut self, limit: u32) -> u32 {
+        let t1 = Wrapping(self.state) * Wrapping(1103515245);
+        let t2 = t1 + Wrapping(12345);
+        self.state = t2.0 & 0x7fffffff;
+        self.state % limit
     }
 }
 
@@ -84,9 +87,9 @@ mod test {
 
     #[test]
     fn random_strings() {
-        fn check(size: uint, index: uint) -> String {
+        fn check(size: u32, index: u32) -> String {
             let text = make_random_string(size, index);
-            assert!(text.len() == size);
+            assert!(text.len() == size as usize);
             text
         }
         let mut texts: HashSet<String> = HashSet::new();
@@ -122,21 +125,20 @@ mod test {
 
     #[test]
     fn test_tmpdir() {
-        use std::{io, path};
-        use std::io::TempDir;
+        use std::{fs, path};
+        use std::fs::TempDir;
 
-        let path: path::Path;
-        {
+        let path: path::PathBuf = {
             let tmp = TempDir::new("testutil").unwrap();
-            path = tmp.path().clone();
-            check!(io::fs::mkdir(&path.join("subdir"),
-                (io::USER_READ | io::USER_WRITE)));
-            assert!(check!(io::fs::lstat(&path.join("subdir"))).kind == io::FileType::Directory);
+            let path = tmp.path().to_path_buf();
+            check!(fs::create_dir(&path.join("subdir")));
+            assert!(check!(fs::metadata(&path.join("subdir"))).is_dir());
             // println!("Tmp: '{}'", path.display());
-        }
+            path
+        };
 
         // Make sure it goes away when the TempDir goes out of scope.
-        match io::fs::lstat(&path) {
+        match fs::metadata(&path) {
             Ok(_) => panic!("Directory should have been removed"),
             Err(_) => ()
         };

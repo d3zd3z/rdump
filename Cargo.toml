@@ -9,6 +9,8 @@ fourcc = "*"
 rustc-serialize = "*"
 # sqlite3 = "*"
 uuid = "*"
+flate2 = "*"
+log = "*"
 
 # [dependencies.sqlite3]
 # path = "lib/sqlite3"
