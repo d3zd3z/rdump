@@ -4,8 +4,7 @@ use kind::Kind;
 use oid::Oid;
 use std::cell::RefCell;
 use std::cell::Ref as CellRef;
-
-use flate::{deflate_bytes_zlib, inflate_bytes_zlib};
+use zlib;
 
 #[cfg(test)]
 use pdump::HexDump;
@@ -57,6 +56,7 @@ pub enum Data<'a> {
 
 // For now, just implement AsSlice and anything else can be determined by the
 // slice.
+// TODO: Slice is deprecated, will need to implement index.
 impl<'b> AsSlice<u8> for Data<'b> {
     fn as_slice<'a>(&'a self) -> &'a [u8] {
         match *self {
@@ -167,18 +167,9 @@ impl Chunk for PlainChunk {
         }
 
         *self.zdata_.borrow_mut() = {
-            match deflate_bytes_zlib(self.data_.as_slice()) {
-                None => {
-                    warn!("zlib wasn't able to compress");
-                    Compressed::Uncompressible
-                },
-                Some(buf) => {
-                    if buf.len() < self.data_.len() {
-                        Compressed::Compressed(buf.as_slice().to_vec())
-                    } else {
-                        Compressed::Uncompressible
-                    }
-                }
+            match zlib::deflate(self.data_.as_slice()) {
+                None => Compressed::Uncompressible,
+                Some(buf) => Compressed::Compressed(buf),
             }
         };
 
@@ -230,7 +221,7 @@ impl Chunk for CompressedChunk {
         }
 
         *self.data.borrow_mut() = Some({
-            match inflate_bytes_zlib(self.zdata.as_slice()) {
+            match zlib::inflate(self.zdata.as_slice(), self.data_len() as usize) {
                 None => panic!("zlib unable to inflate"),
                 Some(buf) => buf.as_slice().to_vec(),
             }
@@ -252,30 +243,30 @@ impl Chunk for CompressedChunk {
 mod test {
     use super::{new_plain, new_compressed};
     use testutil::{boundary_sizes, make_random_string};
-    use flate::inflate_bytes_zlib;
+    use zlib;
 
     fn single_chunk(index: u32) {
         let p1 = make_random_string(index, index);
         let c1 = new_plain(kind!("blob"), p1.clone().into_bytes());
-        assert!(c1.kind() == kind!("blob"));
-        assert!(c1.data().as_slice() == p1.as_bytes());
+        assert_eq!(c1.kind(), kind!("blob"));
+        assert_eq!(c1.data().as_slice(), p1.as_bytes());
 
         match c1.zdata() {
-            None => (), // Fine if not compressible.
+            None => (), // Find if not compressible..
             Some(ref comp) => {
-                match inflate_bytes_zlib(comp.as_slice()) {
+                match zlib::inflate(comp.as_slice(), p1.len()) {
                     None => panic!("Unable to decompress data"),
                     Some(raw) => assert!(raw.as_slice() == p1.as_bytes()),
                 };
 
                 // Make a new chunk out of the compressed data.
                 let c2 = new_compressed(c1.kind(), c1.oid().clone(), comp.as_slice().to_vec(), c1.data_len());
-                assert!(c1.kind() == c2.kind());
-                assert!(c1.oid() == c2.oid());
+                assert_eq!(c1.kind(), c2.kind());
+                assert_eq!(c1.oid(), c2.oid());
 
-                assert!(c1.data().as_slice() == c2.data().as_slice());
+                assert_eq!(c1.data().as_slice(), c2.data().as_slice());
             },
-        }
+        };
 
         // c1.dump();
     }

@@ -63,6 +63,12 @@ impl<'a> HexDump for &'a [u8] {
     }
 }
 
+impl HexDump for Vec<u8> {
+    fn dump(&self) {
+        (&self[..]).dump()
+    }
+}
+
 #[test]
 fn samples() {
     "Hello".as_bytes().dump();

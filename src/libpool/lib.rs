@@ -40,6 +40,7 @@ extern crate libc;
 #[cfg(test)]
 extern crate tempdir;
 
+extern crate flate2;
 // // extern crate collections;
 // extern crate flate;
 // extern crate uuid;
@@ -66,7 +67,8 @@ pub mod pdump;
 
 pub mod kind;
 pub mod oid;
-// pub mod chunk;
+pub mod chunk;
+mod zlib;
 /*
 pub mod pool;
 */
