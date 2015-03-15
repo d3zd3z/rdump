@@ -126,7 +126,7 @@ mod test {
     #[test]
     fn test_tmpdir() {
         use std::{fs, path};
-        use std::fs::TempDir;
+        use tempdir::TempDir;
 
         let path: path::PathBuf = {
             let tmp = TempDir::new("testutil").unwrap();

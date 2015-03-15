@@ -30,7 +30,7 @@ pub trait Chunk {
     ///
     /// Sometimes, only the data length is needed, and can be determined
     /// without decompressing the data.
-    fn data_len(&self) -> uint;
+    fn data_len(&self) -> u32;
 
     #[cfg(test)]
     fn dump(&self) {
@@ -63,13 +63,13 @@ impl<'b> AsSlice<u8> for Data<'b> {
             Data::Ptr(v) => v,
             Data::Cell(ref v) => {
                 match **v {
-                    Compressed::Compressed(ref p) => &p[],
+                    Compressed::Compressed(ref p) => &p[..],
                     _ => unreachable!(),
                 }
             },
             Data::VecCell(ref v) => {
                 match **v {
-                    Some(ref p) => &p[],
+                    Some(ref p) => &p[..],
                     _ => unreachable!(),
                 }
             },
@@ -90,7 +90,7 @@ pub fn new_plain_with_oid(kind: Kind, oid: Oid, data: Vec<u8>) -> Box<Chunk> {
 */
 
 // Construct a chunk from compressed data.
-pub fn new_compressed(kind: Kind, oid: Oid, zdata: Vec<u8>, data_len: uint) -> Box<Chunk + 'static> {
+pub fn new_compressed(kind: Kind, oid: Oid, zdata: Vec<u8>, data_len: u32) -> Box<Chunk + 'static> {
     Box::new(CompressedChunk::new(kind, oid, zdata, data_len))
 }
 
@@ -185,8 +185,8 @@ impl Chunk for PlainChunk {
         self.zdata()
     }
 
-    fn data_len(&self) -> uint {
-        self.data_.len()
+    fn data_len(&self) -> u32 {
+        self.data_.len() as u32
     }
 }
 
@@ -194,13 +194,13 @@ struct CompressedChunk {
     kind: Kind,
     oid: Oid,
     data: RefCell<Option<Vec<u8>>>,
-    data_len: uint,
+    data_len: u32,
     zdata: Vec<u8>,
 }
 
 impl CompressedChunk {
     // Construct a new Chunk by copying the given compressed payload.
-    fn new(kind: Kind, oid: Oid, zdata: Vec<u8>, data_len: uint) -> CompressedChunk {
+    fn new(kind: Kind, oid: Oid, zdata: Vec<u8>, data_len: u32) -> CompressedChunk {
         CompressedChunk {
             kind: kind,
             oid: oid,
@@ -239,7 +239,7 @@ impl Chunk for CompressedChunk {
         self.data()
     }
 
-    fn data_len(&self) -> uint {
+    fn data_len(&self) -> u32 {
         self.data_len
     }
 
@@ -254,7 +254,7 @@ mod test {
     use testutil::{boundary_sizes, make_random_string};
     use flate::inflate_bytes_zlib;
 
-    fn single_chunk(index: uint) {
+    fn single_chunk(index: u32) {
         let p1 = make_random_string(index, index);
         let c1 = new_plain(kind!("blob"), p1.clone().into_bytes());
         assert!(c1.kind() == kind!("blob"));

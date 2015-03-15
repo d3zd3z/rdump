@@ -11,6 +11,7 @@ rustc-serialize = "*"
 uuid = "*"
 flate2 = "*"
 log = "*"
+tempdir = "*"
 
 # [dependencies.sqlite3]
 # path = "lib/sqlite3"

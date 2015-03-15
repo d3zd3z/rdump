@@ -16,9 +16,7 @@
 // Needed for libc
 #![feature(libc)]
 
-#![feature(tempdir)]
-#![feature(path)]
-#![feature(fs)]
+// #![feature(path)]
 
 #![cfg_attr(test, feature(test))]
 
@@ -38,6 +36,10 @@
 
 extern crate core;
 extern crate libc;
+
+#[cfg(test)]
+extern crate tempdir;
+
 // // extern crate collections;
 // extern crate flate;
 // extern crate uuid;
