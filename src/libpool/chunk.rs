@@ -6,6 +6,7 @@ use kind::Kind;
 use oid::Oid;
 use std::cell::RefCell;
 use std::cell::Ref as CellRef;
+use std::mem;
 use zlib;
 
 #[cfg(test)]
@@ -32,6 +33,12 @@ pub trait Chunk {
     /// Sometimes, only the data length is needed, and can be determined
     /// without decompressing the data.
     fn data_len(&self) -> u32;
+
+    /// Move the underlying uncompressed data out of the chunk.  Consumes
+    /// the chunk in the process.  Ideally, this would be a move, but Rust
+    /// 1 doesn't allow moves of unsized types out of boxes, so it really
+    /// just invalidates the data in the chunk.
+    fn into_bytes(&mut self) -> Vec<u8>;
 
     #[cfg(test)]
     fn dump(&self) {
@@ -181,6 +188,10 @@ impl Chunk for PlainChunk {
     fn data_len(&self) -> u32 {
         self.data_.len() as u32
     }
+
+    fn into_bytes(&mut self) -> Vec<u8> {
+        mem::replace(&mut self.data_, vec![])
+    }
 }
 
 struct CompressedChunk {
@@ -204,6 +215,22 @@ impl CompressedChunk {
     }
 }
 
+impl CompressedChunk {
+    // Unsure that the data has been uncompressed.
+    fn force_data(&self) {
+        let mut cell = self.data.borrow_mut();
+        match *cell {
+            Some(_) => (),
+            None => {
+                *cell = match zlib::inflate(self.zdata.as_slice(), self.data_len() as usize) {
+                    None => panic!("zlib unable to inflate"),
+                    Some(buf) => Some(buf),
+                };
+            }
+        }
+    }
+}
+
 impl Chunk for CompressedChunk {
     fn kind(&self) -> Kind {
         self.kind
@@ -214,22 +241,12 @@ impl Chunk for CompressedChunk {
     }
 
     fn data<'a>(&'a self) -> Data<'a> {
-        {
-            let cell = self.data.borrow();
-            match *cell {
-                Some(_) => return Data::VecCell(cell),
-                _ => ()
-            }
+        self.force_data();
+        let cell = self.data.borrow();
+        match *cell {
+            Some(_) => return Data::VecCell(cell),
+            _ => unreachable!(),
         }
-
-        *self.data.borrow_mut() = Some({
-            match zlib::inflate(self.zdata.as_slice(), self.data_len() as usize) {
-                None => panic!("zlib unable to inflate"),
-                Some(buf) => buf.as_slice().to_vec(),
-            }
-        });
-
-        self.data()
     }
 
     fn data_len(&self) -> u32 {
@@ -238,6 +255,15 @@ impl Chunk for CompressedChunk {
 
     fn zdata<'a>(&'a self) -> Option<Data<'a>> {
         Some(Data::Ptr(self.zdata.as_slice()))
+    }
+
+    fn into_bytes(&mut self) -> Vec<u8> {
+        self.force_data();
+        let mut cell = self.data.borrow_mut();
+        match mem::replace(&mut *cell, None) {
+            None => unreachable!(),
+            Some(data) => data,
+        }
     }
 }
 
@@ -267,6 +293,11 @@ mod test {
                 assert_eq!(c1.oid(), c2.oid());
 
                 assert_eq!(c1.data().as_slice(), c2.data().as_slice());
+
+                // Ensure we can pull the uncompressed data out.
+                let mut c2 = c2;
+                let d2 = c2.into_bytes();
+                assert_eq!(c1.data().as_slice(), d2);
             },
         };
 
