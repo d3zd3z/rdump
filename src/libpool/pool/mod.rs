@@ -1,24 +1,24 @@
 // The traits that define a backup pool.
 
-// use oid::Oid;
-// use chunk::Chunk;
+use oid::Oid;
+use chunk::Chunk;
 
 // use std::io::{fs, IoResult};
-// use uuid::Uuid;
+use error::Result;
+use uuid::Uuid;
 
 // pub use self::file::create;
 // use self::file::FilePool;
 
 mod sql;
-// mod file;
+mod file;
 
-/*
 /// A source of chunks.  This is similar to a `Map`, except that the
 /// values aren't kept in memory, so we have to return real items
 /// rather than references to them.
-pub trait ChunkSource: Collection {
+pub trait ChunkSource {
     /// Return a new chunk with the given key.
-    fn find(&self, key: &Oid) -> IoResult<Box<Chunk>>;
+    fn find(&self, key: &Oid) -> Result<Box<Chunk>>;
 
     /// It is also useful to find things, possibly not using all of
     /// the information about the chunk.
@@ -28,16 +28,17 @@ pub trait ChunkSource: Collection {
     fn uuid<'a>(&'a self) -> &'a Uuid;
 
     /// Return the set of backups stored in this pool.
-    fn backups(&self) -> IoResult<Vec<Oid>>;
+    fn backups(&self) -> Result<Vec<Oid>>;
 }
 
-/// A sync for chunks.
-pub trait ChunkSync: ChunkSource {
-    fn add(&mut self, chunk: &Chunk) -> IoResult<()>;
+/// A sink for chunks.
+pub trait ChunkSink: ChunkSource {
+    fn add(&mut self, chunk: &Chunk) -> Result<()>;
 
-    fn flush(&mut self) -> IoResult<()>;
+    fn flush(self) -> Result<()>;
 }
 
+/*
 /// Attempt to open a pool, returning if it possible.
 pub fn open(path: Path) -> IoResult<Box<ChunkSync>> {
    try!(fs::stat(&path.join("data.db")));

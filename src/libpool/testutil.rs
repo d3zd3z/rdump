@@ -3,6 +3,7 @@
 use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::num::wrapping::Wrapping;
+use chunk;
 
 // A short list of words to help generate reasonably compressible
 // data.
@@ -34,6 +35,28 @@ pub fn make_random_string(size: u32, index: u32) -> String {
 
     result.truncate(size as usize);
     result
+}
+
+// Make a random chunk.
+pub fn make_random_chunk(size: u32, index: u32) -> Box<chunk::Chunk> {
+    chunk::new_plain(kind!("blob"), make_random_string(size, index).into_bytes())
+}
+
+pub fn make_uncompressible_chunk(size: u32, index: u32) -> Box<chunk::Chunk> {
+    use rand::{Rng, SeedableRng, XorShiftRng};
+    use std::iter::repeat;
+
+    let mut buf: Vec<u8> = repeat(0u8).take(size as usize).collect();
+
+    let mut gen: XorShiftRng = SeedableRng::from_seed([index, 0, 0, 0]);
+
+    gen.fill_bytes(&mut buf);
+    /* {
+        use pdump::HexDump;
+        println!("Buf of {:x} bytes", size);
+        buf.dump();
+    } */
+    chunk::new_plain(kind!("unco"), buf)
 }
 
 // Generate a useful series of sizes, build around powers of two and

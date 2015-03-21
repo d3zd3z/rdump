@@ -7,14 +7,12 @@ authors = [ "davidb@davidb.org" ]
 [dependencies]
 fourcc = "*"
 rustc-serialize = "*"
-# sqlite3 = "*"
 uuid = "*"
 flate2 = "*"
 log = "*"
 tempdir = "*"
-
-# [dependencies.sqlite3]
-# path = "lib/sqlite3"
+rusqlite = "*"
+rand = "*"
 
 [lib]
 

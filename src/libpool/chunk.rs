@@ -1,4 +1,6 @@
 // Backup chunks.
+//
+// TODO: Implement 'Debug' for chunks.
 
 use kind::Kind;
 use oid::Oid;
