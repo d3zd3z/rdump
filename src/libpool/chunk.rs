@@ -6,7 +6,6 @@ use kind::Kind;
 use oid::Oid;
 use std::cell::RefCell;
 use std::cell::Ref as CellRef;
-use std::mem;
 use zlib;
 
 #[cfg(test)]
@@ -34,11 +33,8 @@ pub trait Chunk {
     /// without decompressing the data.
     fn data_len(&self) -> u32;
 
-    /// Move the underlying uncompressed data out of the chunk.  Consumes
-    /// the chunk in the process.  Ideally, this would be a move, but Rust
-    /// 1 doesn't allow moves of unsized types out of boxes, so it really
-    /// just invalidates the data in the chunk.
-    fn into_bytes(&mut self) -> Vec<u8>;
+    /// Move the underlying uncompressed data out of the chunk.
+    fn into_bytes(self: Box<Self>) -> Vec<u8>;
 
     #[cfg(test)]
     fn dump(&self) {
@@ -189,8 +185,8 @@ impl Chunk for PlainChunk {
         self.data_.len() as u32
     }
 
-    fn into_bytes(&mut self) -> Vec<u8> {
-        mem::replace(&mut self.data_, vec![])
+    fn into_bytes(self: Box<Self>) -> Vec<u8> {
+        self.data_
     }
 }
 
@@ -257,10 +253,9 @@ impl Chunk for CompressedChunk {
         Some(Data::Ptr(self.zdata.as_slice()))
     }
 
-    fn into_bytes(&mut self) -> Vec<u8> {
+    fn into_bytes(self: Box<Self>) -> Vec<u8> {
         self.force_data();
-        let mut cell = self.data.borrow_mut();
-        match mem::replace(&mut *cell, None) {
+        match self.data.into_inner() {
             None => unreachable!(),
             Some(data) => data,
         }
@@ -295,7 +290,6 @@ mod test {
                 assert_eq!(c1.data().as_slice(), c2.data().as_slice());
 
                 // Ensure we can pull the uncompressed data out.
-                let mut c2 = c2;
                 let d2 = c2.into_bytes();
                 assert_eq!(c1.data().as_slice(), d2);
             },
