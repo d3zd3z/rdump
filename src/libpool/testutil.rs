@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::num::wrapping::Wrapping;
 use chunk;
+use kind::Kind;
 
 // A short list of words to help generate reasonably compressible
 // data.
@@ -40,6 +41,10 @@ pub fn make_random_string(size: u32, index: u32) -> String {
 // Make a random chunk.
 pub fn make_random_chunk(size: u32, index: u32) -> Box<chunk::Chunk> {
     chunk::new_plain(kind!("blob"), make_random_string(size, index).into_bytes())
+}
+
+pub fn make_kinded_random_chunk(kind: Kind, size: u32, index: u32) -> Box<chunk::Chunk> {
+    chunk::new_plain(kind, make_random_string(size, index).into_bytes())
 }
 
 pub fn make_uncompressible_chunk(size: u32, index: u32) -> Box<chunk::Chunk> {

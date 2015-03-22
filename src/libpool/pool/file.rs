@@ -153,7 +153,15 @@ impl ChunkSource for FilePool {
     }
 
     fn backups(&self) -> error::Result<Vec<Oid>> {
-        panic!("TODO");
+        let mut stmt = try!(self.db.prepare(
+                "SELECT oid FROM blobs WHERE kind = 'back'"));
+        let mut result = Vec::new();
+        for row in try!(stmt.query(&[])) {
+            let row = try!(row);
+            let oid: Vec<u8> = row.get(0);
+            result.push(Oid::from_raw(&oid));
+        }
+        Ok(result)
     }
 }
 
@@ -229,7 +237,7 @@ impl<'a> ChunkSource for FilePoolWriter<'a> {
 mod test {
     use super::*;
     use pool::{ChunkSource, ChunkSink};
-    use testutil::{make_random_chunk, make_uncompressible_chunk, boundary_sizes};
+    use testutil::{make_random_chunk, make_kinded_random_chunk, make_uncompressible_chunk, boundary_sizes};
     use std::collections::HashMap;
     use tempdir::TempDir;
 
@@ -279,6 +287,36 @@ mod test {
             assert_eq!(c1.oid(), c2.oid());
             assert_eq!(c1.data().as_slice(), c2.data().as_slice());
         }
+    }
+
+    #[test]
+    fn backups() {
+        use std::collections::HashSet;
+
+        let tmp = TempDir::new("filepool").unwrap();
+        let path = tmp.path().join("pool");
+
+        FilePool::create(&path).unwrap();
+        let mut pool = FilePool::open(&path).unwrap();
+        let mut oids = HashSet::new();
+
+        {
+            let mut pw = pool.get_writer().unwrap();
+
+            for i in 0 .. 1000 {
+                let ch = make_kinded_random_chunk(kind!("back"), 64, i);
+                pw.add(&*ch).unwrap();
+                oids.insert(ch.oid().clone());
+            }
+            pw.flush().unwrap();
+        }
+
+        for id in pool.backups().unwrap() {
+            let present = oids.remove(&id);
+            assert!(present);
+        }
+
+        assert_eq!(oids.len(), 0);
     }
 }
 
