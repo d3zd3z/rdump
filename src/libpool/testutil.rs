@@ -69,7 +69,7 @@ pub fn make_uncompressible_chunk(size: u32, index: u32) -> Box<chunk::Chunk> {
 pub fn boundary_sizes() -> Vec<u32> {
     let mut nums: BTreeSet<u32> = BTreeSet::new();
 
-    for i in range(0, 19) {
+    for i in 0 .. 19 {
         let bit = 1 << i;
         if bit > 0 {
             nums.insert(bit - 1);

@@ -288,7 +288,7 @@ mod test {
         let mut map = HashMap::new();
         let mut oids = vec!();
 
-        for i in range(0, ITERATIONS) {
+        for i in 0 .. ITERATIONS {
             oids.push(Oid::from_uint(i));
         }
 
