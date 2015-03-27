@@ -19,6 +19,9 @@
 // Needed to call .exists() on a Path.
 #![feature(path_ext)]
 
+// Until type ascription is implemeneted, we need trivial casts.
+#![allow(trivial_casts)]
+
 #![cfg_attr(test, feature(test))]
 
 /// Rust dump
@@ -37,7 +40,7 @@ extern crate flate2;
 extern crate uuid;
 // extern crate sqlite3;
 extern crate rusqlite;
-extern crate "rustc-serialize" as rustc_serialize;
+extern crate rustc_serialize;
 
 #[macro_use]
 extern crate log;
