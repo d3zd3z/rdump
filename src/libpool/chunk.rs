@@ -8,7 +8,7 @@ use std::cell::RefCell;
 use std::cell::Ref as CellRef;
 use zlib;
 
-#[cfg(test)]
+// #[cfg(test)]
 use pdump::HexDump;
 
 // Note that because the Chunks may compress and decompress lazily,
@@ -36,7 +36,7 @@ pub trait Chunk {
     /// Move the underlying uncompressed data out of the chunk.
     fn into_bytes(self: Box<Self>) -> Vec<u8>;
 
-    #[cfg(test)]
+    // #[cfg(test)]
     fn dump(&self) {
         println!("Chunk: '{}' ({} bytes)", self.kind().textual(), self.data_len());
         self.data().as_slice().dump();

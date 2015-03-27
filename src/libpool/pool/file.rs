@@ -46,8 +46,12 @@ impl FilePool {
     pub fn open(path: &Path) -> error::Result<FilePool> {
         let db = try!(SqliteConnection::open(&path.join("data.db")));
 
+        let _inabilities = try!(POOL_SCHEMA.check(&db));
+
         // Retrieve the uuid.
         // TODO: Need something more robust than their query_one.
+        // We should be able to handle no uuid, and probably just create
+        // one.
         let uuid: String = db.query_row("SELECT value FROM props WHERE key = 'uuid'", &[],
             |row| { row.get(0) });
 

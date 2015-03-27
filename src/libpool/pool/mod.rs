@@ -4,7 +4,8 @@ use oid::Oid;
 use chunk::Chunk;
 
 // use std::io::{fs, IoResult};
-use error::Result;
+use std::path::Path;
+use error::{Error, Result};
 use uuid::Uuid;
 
 // pub use self::file::create;
@@ -38,17 +39,21 @@ pub trait ChunkSink: ChunkSource {
     fn flush(self) -> Result<()>;
 }
 
-/*
-/// Attempt to open a pool, returning if it possible.
-pub fn open(path: Path) -> IoResult<Box<ChunkSync>> {
-   try!(fs::stat(&path.join("data.db")));
+/// Attempt to open a pool, for reading.
+pub fn open(path: &Path) -> Result<Box<ChunkSource>> {
+    use std::fs::PathExt;
 
-   match FilePool::open(path) {
-       Ok(p) => Ok(box p as Box<ChunkSync>),
-       Err(e) => Err(e)
-   }
+    if !path.join("data.db").exists() {
+        return Err(Error::NotAPool);
+    }
+
+    match file::FilePool::open(path) {
+        Ok(p) => Ok(Box::new(p)),
+        Err(e) => Err(e),
+    }
 }
 
+/*
 #[cfg(test)]
 mod test {
     use testutil::TempDir;

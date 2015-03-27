@@ -4,6 +4,7 @@ use std::error;
 use std::fmt;
 use std::io;
 use std::result;
+use std::string::FromUtf8Error;
 use rusqlite;
 use uuid::ParseError;
 
@@ -14,7 +15,9 @@ pub enum Error {
     Io(io::Error),
     Sql(rusqlite::SqliteError),
     Uuid(ParseError),
+    Utf8(FromUtf8Error),
     MissingChunk,
+    NotAPool,
 }
 
 impl error::Error for Error {
@@ -27,7 +30,10 @@ impl error::Error for Error {
             // it.  It means we won't get much of a description.
             Error::Uuid(_) => "UUID parse error",
 
+            Error::Utf8(_) => "UTF8 decode error",
+
             Error::MissingChunk => "Missing chunk",
+            Error::NotAPool => "Not a pool",
         }
     }
 }
@@ -50,7 +56,13 @@ impl fmt::Display for Error {
                 try!(err.fmt(fmt));
                 write!(fmt, ")")
             },
+            Error::Utf8(ref err) => {
+                try!(write!(fmt, "Utf8("));
+                try!(err.fmt(fmt));
+                write!(fmt, ")")
+            }
             Error::MissingChunk => write!(fmt, "MissingChunk"),
+            Error::NotAPool => write!(fmt, "NotAPool"),
         }
     }
 }
@@ -70,5 +82,11 @@ impl error::FromError<rusqlite::SqliteError> for Error {
 impl error::FromError<ParseError> for Error {
     fn from_error(err: ParseError) -> Error {
         Error::Uuid(err)
+    }
+}
+
+impl error::FromError<FromUtf8Error> for Error {
+    fn from_error(err: FromUtf8Error) -> Error {
+        Error::Utf8(err)
     }
 }

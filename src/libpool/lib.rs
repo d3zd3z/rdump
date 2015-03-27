@@ -16,7 +16,8 @@
 // Needed for libc
 #![feature(libc)]
 
-// #![feature(path)]
+// Needed to call .exists() on a Path.
+#![feature(path_ext)]
 
 #![cfg_attr(test, feature(test))]
 
@@ -52,12 +53,13 @@ pub mod kind;
 #[cfg(test)]
 mod testutil;
 
-#[cfg(test)]
+// #[cfg(test)]
 pub mod pdump;
 
 pub mod oid;
 pub mod chunk;
 pub mod pool;
+pub mod nodes;
 
 mod error;
 mod zlib;
