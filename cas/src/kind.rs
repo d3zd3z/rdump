@@ -2,12 +2,14 @@
 
 //! A Kind is a u32 that corresponds to a 4-character ASCII string.
 
+use std::result;
 use std::io::Cursor;
+use std::fmt;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use super::Error;
 use super::Result;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub struct Kind {
     pub raw: u32,
 }
@@ -42,8 +44,15 @@ impl ToString for Kind {
     }
 }
 
+impl fmt::Debug for Kind {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> result::Result<(), fmt::Error> {
+        write!(formatter, "Kind(\"{}\")", self.to_string())
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use std::io::Cursor;
     use super::*;
     use ::Error;
 
@@ -76,5 +85,17 @@ mod test {
     #[test]
     fn test_string() {
         assert_eq!(Kind::new("blob").unwrap().to_string(), "blob");
+    }
+
+    #[test]
+    fn test_debug() {
+        use std::io::Write;
+
+        // let mut text = String::new();
+        let text: Vec<u8> = Vec::new();
+        let mut wr = Cursor::new(text);
+        let k = Kind::new("blob").unwrap();
+        write!(wr, "{:?}", k).unwrap();
+        assert_eq!(String::from_utf8(wr.into_inner()).unwrap(), "Kind(\"blob\")");
     }
 }
