@@ -10,3 +10,10 @@ Content Addressable Store
 
 [dependencies]
 byteorder = "*"
+libc = "*"
+rustc-serialize = "*"
+flate2 = "*"
+
+# This is a testing dependency.
+tempdir = "*"
+rand = "*"
