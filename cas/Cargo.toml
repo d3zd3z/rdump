@@ -13,6 +13,8 @@ byteorder = "*"
 libc = "*"
 rustc-serialize = "*"
 flate2 = "*"
+rusqlite = "*"
+uuid = "*"
 
 # This is a testing dependency.
 tempdir = "*"
