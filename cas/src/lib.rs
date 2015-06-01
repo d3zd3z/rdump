@@ -10,7 +10,7 @@ extern crate flate2;
 extern crate rusqlite;
 extern crate uuid;
 
-#[cfg(test)]
+// #[cfg(test)]
 extern crate rand;
 
 /*
@@ -22,19 +22,22 @@ extern crate test;
 extern crate tempdir;
 
 pub use error::Error;
+pub use kind::Kind;
+pub use oid::Oid;
+pub use chunk::Chunk;
 
 use std::result;
 
 pub type Result<T> = result::Result<T, Error>;
 
-pub mod error;
-pub mod kind;
-pub mod oid;
+mod error;
+mod kind;
+mod oid;
 pub mod chunk;
 pub mod pdump;
 pub mod pool;
 
 mod zlib;
 
-#[cfg(test)]
-mod testutil;
+// #[cfg(test)]
+pub mod testutil;

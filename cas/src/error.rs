@@ -16,6 +16,7 @@ pub enum Error {
     NonAsciiKind,
     BadKindLength,
     MissingChunk,
+    NotAPool,
 }
 
 impl From<io::Error> for Error {
@@ -56,6 +57,7 @@ impl fmt::Display for Error {
             Error::NonAsciiKind => write!(f, "Non ascii Kind"),
             Error::BadKindLength => write!(f, "Invalid Kind length (!= 4)"),
             Error::MissingChunk => write!(f, "Missing chunk"),
+            Error::NotAPool => write!(f, "Not a storage pool"),
         }
     }
 }
@@ -70,6 +72,7 @@ impl error::Error for Error {
             Error::NonAsciiKind => "Non ascii Kind",
             Error::BadKindLength => "Invalid Kind length (!= 4)",
             Error::MissingChunk => "Missing Chunk",
+            Error::NotAPool => "Not a storage pool",
         }
     }
 
@@ -78,6 +81,7 @@ impl error::Error for Error {
             Error::NonAsciiKind => None,
             Error::BadKindLength => None,
             Error::MissingChunk => None,
+            Error::NotAPool => None,
             Error::Io(ref err) => err.cause(),
             Error::ByteOrder(ref err) => err.cause(),
             Error::Sql(ref err) => err.cause(),

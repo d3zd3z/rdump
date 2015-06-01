@@ -1,9 +1,15 @@
 // A pool is a place that chunks can be stored.
 
 use Result;
+use Error;
 use oid::Oid;
 use chunk::Chunk;
 use uuid::Uuid;
+
+use std::path::Path;
+use std::fs;
+
+pub use pool::file::FilePool;
 
 mod sql;
 mod file;
@@ -25,13 +31,27 @@ pub trait ChunkSource {
     fn backups(&self) -> Result<Vec<Oid>>;
 
     /// Get a writer for this source (if possible).
-    fn get_writer<'a>(&'a mut self) -> Result<Box<ChunkSink + 'a>>;
+    fn get_writer<'a>(&'a self) -> Result<Box<ChunkSink + 'a>>;
 }
 
 /// A sink for chunks.
 pub trait ChunkSink: ChunkSource {
-    fn add(&mut self, chunk: &Chunk) -> Result<()>;
+    fn add(&self, chunk: &Chunk) -> Result<()>;
 
     /// Flush, and consume this sink.
     fn flush(self: Box<Self>) -> Result<()>;
+}
+
+/// Attempt to open a pool for reading, auto-determining the type.
+pub fn open(path: &Path) -> Result<Box<ChunkSource>> {
+    let meta = try!(fs::metadata(path.join("data.db")));
+
+    if !meta.is_file() {
+        return Err(Error::NotAPool);
+    }
+
+    match FilePool::open(path) {
+        Ok(p) => Ok(Box::new(p)),
+        Err(e) => Err(e),
+    }
 }
