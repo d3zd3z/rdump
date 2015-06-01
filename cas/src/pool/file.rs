@@ -137,7 +137,7 @@ impl ChunkSource for FilePool {
         Ok(result)
     }
 
-    fn get_writer<'a>(&'a mut self) -> Result<Box<ChunkSink + 'a>> {
+    fn get_writer<'a>(&'a self) -> Result<Box<ChunkSink + 'a>> {
         let tx = try!(self.db.transaction());
         Ok(Box::new(FilePoolWriter {
             parent: self,
@@ -152,7 +152,7 @@ pub struct FilePoolWriter<'a> {
 }
 
 impl<'a> ChunkSink for FilePoolWriter<'a> {
-    fn add(&mut self, chunk: &Chunk) -> Result<()> {
+    fn add(&self, chunk: &Chunk) -> Result<()> {
         let payload = match chunk.zdata() {
             None => chunk.data(),
             Some(zdata) => zdata,
@@ -213,7 +213,7 @@ impl<'a> ChunkSource for FilePoolWriter<'a> {
         self.parent.backups()
     }
 
-    fn get_writer<'b>(&'b mut self) -> Result<Box<ChunkSink + 'b>> {
+    fn get_writer<'b>(&'b self) -> Result<Box<ChunkSink + 'b>> {
         panic!("Nested writers not supported");
     }
 }
@@ -237,11 +237,11 @@ mod test {
         // let path = Path::new("blort");
 
         FilePool::create(&path).unwrap();
-        let mut pool = FilePool::open(&path).unwrap();
+        let pool = FilePool::open(&path).unwrap();
         let mut all = HashMap::new();
 
         {
-            let mut pw = pool.get_writer().unwrap();
+            let pw = pool.get_writer().unwrap();
 
             for i in boundary_sizes() {
                 let ch = make_random_chunk(i, i);
@@ -287,11 +287,11 @@ mod test {
         let path = tmp.path().join("pool");
 
         FilePool::create(&path).unwrap();
-        let mut pool = FilePool::open(&path).unwrap();
+        let pool = FilePool::open(&path).unwrap();
         let mut oids = HashSet::new();
 
         {
-            let mut pw = pool.get_writer().unwrap();
+            let pw = pool.get_writer().unwrap();
 
             for i in 0 .. 1000 {
                 let ch = make_kinded_random_chunk(Kind::new("back").unwrap(), 64, i);
