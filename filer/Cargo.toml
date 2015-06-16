@@ -1,0 +1,25 @@
+[package]
+
+name = "filer"
+version = "0.1.1"
+authors = [ "David Brown <davidb@davidb.org>" ]
+license = "MIT"
+
+[dependencies]
+
+# TODO: Test-only dependency
+uuid = "*"
+log = "*"
+env_logger = "*"
+
+[dependencies.cas]
+path = "../cas"
+
+[dev-dependencies]
+tempdir = "*"
+
+# Optimize the tests.  It compiles slower, and is harder to debug, but
+# some of the tests are rather slow.  The debug assertions are still
+# on.
+[profile.test]
+opt-level = 3
