@@ -10,9 +10,11 @@ use std::path::Path;
 use std::fs;
 
 pub use pool::file::FilePool;
+pub use self::ram::RamPool;
 
 mod sql;
 mod file;
+mod ram;
 
 /// A source of chunks.  This is similar to a `Map`, except that the values
 /// aren't kept in memory, so we have to return real items rather than
@@ -34,8 +36,10 @@ pub trait ChunkSource {
     fn get_writer<'a>(&'a self) -> Result<Box<ChunkSink + 'a>>;
 }
 
+// TODO: How can we specify that ChunkSink should always be deref to a
+// source?
 /// A sink for chunks.
-pub trait ChunkSink: ChunkSource {
+pub trait ChunkSink {
     fn add(&self, chunk: &Chunk) -> Result<()>;
 
     /// Flush, and consume this sink.

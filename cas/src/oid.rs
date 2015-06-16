@@ -120,6 +120,9 @@ impl Oid {
         ctx.update(data);
         ctx.finish()
     }
+
+    // Simple accessor to get the size.
+    pub fn size() -> usize { 20 }
 }
 
 #[cfg(test)]

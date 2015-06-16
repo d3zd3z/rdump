@@ -25,6 +25,7 @@ pub use error::Error;
 pub use kind::Kind;
 pub use oid::Oid;
 pub use chunk::Chunk;
+pub use chunk::Data;
 
 use std::result;
 
