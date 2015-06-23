@@ -4,22 +4,11 @@ name = "rdump"
 version = "0.1.0"
 authors = [ "davidb@davidb.org" ]
 
-[dependencies]
-fourcc = "*"
-rustc-serialize = "*"
-uuid = "*"
-flate2 = "*"
-log = "*"
-tempdir = "*"
-rusqlite = "*"
-rand = "*"
+[dependencies.cas]
+path = "cas"
 
-[lib]
-
-name = "libpool"
-path = "src/libpool/lib.rs"
-# crate_type = ["dylib", "rlib"]
-crate_type = ["rlib"]
+[dependencies.filer]
+path = "filer"
 
 [[bin]]
 name = "rdump"
