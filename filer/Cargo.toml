@@ -17,6 +17,7 @@ path = "../cas"
 
 [dev-dependencies]
 tempdir = "*"
+rand = "*"
 
 # Optimize the tests.  It compiles slower, and is harder to debug, but
 # some of the tests are rather slow.  The debug assertions are still

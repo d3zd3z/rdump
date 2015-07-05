@@ -19,5 +19,5 @@ type Result<T> = cas::Result<T>;
 // mod itrack;
 
 mod indirect;
-mod data;
-
+pub mod data;
+pub mod decode;
