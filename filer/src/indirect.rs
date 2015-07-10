@@ -118,7 +118,7 @@ impl<'a> Write<'a> {
     }
 
     // Finalize everything.
-    pub fn finish(&mut self) -> Result<Oid> {
+    pub fn finish(mut self) -> Result<Oid> {
         trace!("Running finish: {} levels, l={}", self.buffers.len(), self.level);
         if self.buffers.is_empty() {
             // TODO: Make this more general.
