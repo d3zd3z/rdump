@@ -19,3 +19,10 @@ uuid = "0.1.18"
 # This is a testing dependency.
 tempdir = "0.3.4"
 rand = "0.3.13"
+
+# This binary is mostly for testing purposes.  It exercises the
+# library extensively.
+[[bin]]
+name = "cas"
+test = false
+doc = false
