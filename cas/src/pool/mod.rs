@@ -23,6 +23,9 @@ pub trait ChunkSource {
     /// Return a new chunk with the given key.
     fn find(&self, key: &Oid) -> Result<Box<Chunk>>;
 
+    /// Is this key present in the store.
+    fn contains_key(&self, key: &Oid) -> Result<bool>;
+
     // It is also use to find things, possibly not having to read the
     // entire chunk.
 

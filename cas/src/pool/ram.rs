@@ -45,6 +45,10 @@ impl ChunkSource for RamPool {
         self.chunks.borrow().get(key).map(|x| x.to_chunk()).ok_or(Error::MissingChunk)
     }
 
+    fn contains_key(&self, key: &Oid) -> Result<bool> {
+        Ok(self.chunks.borrow().contains_key(key))
+    }
+
     fn uuid<'a>(&'a self) -> &'a Uuid {
         &self.uuid
     }

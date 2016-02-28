@@ -120,6 +120,16 @@ impl ChunkSource for FilePool {
         }
     }
 
+    fn contains_key(&self, key: &Oid) -> Result<bool> {
+        let count: i32 = try!(self.db.query_row(
+                "SELECT COUNT(*) FROM blobs WHERE oid = ?",
+                &[&&key.bytes[..]],
+                |row| {
+                    row.get(0)
+                }));
+        Ok(count > 0)
+    }
+
     fn uuid<'a>(&'a self) -> &'a Uuid {
         &self.uuid
     }
@@ -203,6 +213,10 @@ impl<'a> ChunkSink for FilePoolWriter<'a> {
 impl<'a> ChunkSource for FilePoolWriter<'a> {
     fn find(&self, key: &Oid) -> Result<Box<Chunk>> {
         self.parent.find(key)
+    }
+
+    fn contains_key(&self, key: &Oid) -> Result<bool> {
+        self.parent.contains_key(key)
     }
 
     fn uuid<'b>(&'b self) -> &'b Uuid {
