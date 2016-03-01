@@ -4,6 +4,7 @@ version = "0.1.0"
 dependencies = [
  "fnv 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "gcrypt 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazy_static 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "murmur3 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "openssl 0.7.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

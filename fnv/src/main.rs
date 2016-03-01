@@ -2,6 +2,8 @@ extern crate fnv;
 extern crate gcrypt;
 extern crate openssl;
 
+#[macro_use] extern crate lazy_static;
+
 use fnv::FnvHasher;
 use openssl::crypto::hash::{hash, Type};
 use std::hash::Hasher;
@@ -42,17 +44,29 @@ impl TestHash for TestSha1 {
 use aes::{AesResult, TestAes};
 mod aes {
     use bloom::BloomItem;
-    use gcrypt::Token;
+    use gcrypt::{init, Token};
     use gcrypt::cipher::{CIPHER_AES128, Flags, Cipher, MODE_ECB};
     use super::TestHash;
 
+    lazy_static! {
+        static ref TOKEN: Token = init(|_| {});
+    }
+
     #[allow(dead_code)]
-    pub struct TestAes(Cipher);
+    pub struct TestAes(Vec<Cipher>);
 
     impl TestAes {
         #[allow(dead_code)]
-        pub fn new(token: Token) -> TestAes {
-            TestAes(Cipher::new(token, CIPHER_AES128, MODE_ECB, Flags::empty()).unwrap())
+        pub fn new() -> TestAes {
+            let mut ciphers = vec![];
+            for i in 0 .. 1 {
+                let mut cipher = Cipher::new(*TOKEN, CIPHER_AES128, MODE_ECB, Flags::empty()).unwrap();
+                let mut key = [0u8; 16];
+                key[0] = i;
+                cipher.set_key(&key).unwrap();
+                ciphers.push(cipher);
+            }
+            TestAes(ciphers)
         }
     }
 
@@ -61,13 +75,17 @@ mod aes {
         type HashResult = AesResult;
 
         fn of_usize(&mut self, num: usize) -> Self::HashResult {
-            let mut buffer = vec![0u8; 16];
+            let mut buffer = vec![0u8; 16 * self.0.len()];
             let mut num = num;
             for pos in 0..8 {
-                buffer[pos] = num as u8;
+                for span in 0 .. self.0.len() {
+                    buffer[pos + span * 16] = num as u8;
+                }
                 num >>= 8;
             }
-            self.0.encrypt_inplace(&mut buffer).unwrap();
+            for (i, ciph) in self.0.iter_mut().enumerate() {
+                ciph.encrypt_inplace(&mut buffer[i * 16 .. (i+1) * 16]).unwrap();
+            }
             AesResult(buffer)
         }
     }
@@ -85,8 +103,6 @@ mod aes {
 
 #[allow(unused_variables)]
 fn main() {
-    let gcrypt_token = gcrypt::init(|_| {});
-
     if false {
         for i in 0 .. 10 {
             let mut h: FnvHasher = Default::default();
@@ -98,9 +114,9 @@ fn main() {
     // TODO: Make this more general.
     // let mut hasher = TestFnv;
     // let mut hasher = TestSha1;
-    let mut hasher = TestAes::new(gcrypt_token);
+    let mut hasher = TestAes::new();
 
-    let mut bl = Bloom::new(26, 1);
+    let mut bl = Bloom::new(26, 3);
     static SIZE: usize = 8000000;
     let mut duplicates = 0;
     for i in 0 .. SIZE {
