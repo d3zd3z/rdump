@@ -1,14 +1,92 @@
 extern crate fnv;
+extern crate gcrypt;
 extern crate openssl;
 
-use openssl::crypto::hash::{hash, Type};
 use fnv::FnvHasher;
+use openssl::crypto::hash::{hash, Type};
 use std::hash::Hasher;
 
 mod bloom;
 use bloom::{Bloom, BloomItem};
 
+// Things that can be used to hash a lot of stuff, for benchmarking and
+// comparing the various hash functions.
+trait TestHash {
+    type HashResult: BloomItem;
+    fn of_usize(&mut self, num: usize) -> Self::HashResult;
+}
+
+#[allow(dead_code)]
+struct TestFnv;
+
+impl TestHash for TestFnv {
+    type HashResult = Fnv256;
+
+    fn of_usize(&mut self, num: usize) -> Self::HashResult {
+        Fnv256::of_usize(num)
+    }
+}
+
+#[allow(dead_code)]
+struct TestSha1;
+
+impl TestHash for TestSha1 {
+    type HashResult = Sha1Result;
+
+    fn of_usize(&mut self, num: usize) -> Self::HashResult {
+        sha1_usize(num)
+    }
+}
+
+#[allow(unused_imports)]
+use aes::{AesResult, TestAes};
+mod aes {
+    use bloom::BloomItem;
+    use gcrypt::Token;
+    use gcrypt::cipher::{CIPHER_AES128, Flags, Cipher, MODE_ECB};
+    use super::TestHash;
+
+    #[allow(dead_code)]
+    pub struct TestAes(Cipher);
+
+    impl TestAes {
+        #[allow(dead_code)]
+        pub fn new(token: Token) -> TestAes {
+            TestAes(Cipher::new(token, CIPHER_AES128, MODE_ECB, Flags::empty()).unwrap())
+        }
+    }
+
+    pub struct AesResult(Vec<u8>);
+    impl TestHash for TestAes {
+        type HashResult = AesResult;
+
+        fn of_usize(&mut self, num: usize) -> Self::HashResult {
+            let mut buffer = vec![0u8; 16];
+            let mut num = num;
+            for pos in 0..8 {
+                buffer[pos] = num as u8;
+                num >>= 8;
+            }
+            self.0.encrypt_inplace(&mut buffer).unwrap();
+            AesResult(buffer)
+        }
+    }
+
+    impl BloomItem for AesResult {
+        fn get_key(&self, index: usize) -> u32 {
+            let mut result = 0;
+            for offset in 4*index .. 4*(index+1) {
+                result = (result << 8) | self.0[offset] as u32;
+            }
+            result
+        }
+    }
+}
+
+#[allow(unused_variables)]
 fn main() {
+    let gcrypt_token = gcrypt::init(|_| {});
+
     if false {
         for i in 0 .. 10 {
             let mut h: FnvHasher = Default::default();
@@ -17,77 +95,42 @@ fn main() {
         }
     }
 
-    if true {
-        let mut bl = Bloom::new(26, 1);
+    // TODO: Make this more general.
+    // let mut hasher = TestFnv;
+    // let mut hasher = TestSha1;
+    let mut hasher = TestAes::new(gcrypt_token);
 
-        static SIZE: usize = 8000000;
-        let mut duplicates = 0;
-        for i in 0 .. SIZE {
-            let h = Fnv256::of_usize(i);
-            if bl.maybe_contains(&h) {
-                duplicates += 1;
-            }
-            bl.add(&h);
+    let mut bl = Bloom::new(26, 1);
+    static SIZE: usize = 8000000;
+    let mut duplicates = 0;
+    for i in 0 .. SIZE {
+        let h = hasher.of_usize(i);
+        if bl.maybe_contains(&h) {
+            duplicates += 1;
         }
-        println!("{} duplicates during insert", duplicates);
+        bl.add(&h);
+    }
+    println!("{} duplicates during insert", duplicates);
 
-        // Verify that the filter actually works.
-        for i in 0 .. SIZE {
-            let h = Fnv256::of_usize(i);
-            if !bl.maybe_contains(&h) {
-                h.dump();
-                panic!("Bloom filter failed");
-            }
+    // Verify that the filter actually works.
+    for i in 0 .. SIZE {
+        let h = hasher.of_usize(i);
+        if !bl.maybe_contains(&h) {
+            panic!("Bloom filter failed");
         }
-
-        // Now count the next step, and see how many false positives.
-        let mut count = 0;
-        for i in SIZE .. 2*SIZE {
-            let h = Fnv256::of_usize(i);
-            if bl.maybe_contains(&h) {
-                count += 1;
-            }
-        }
-        println!("{}/{} false positives ({:.5}%)", count, SIZE,
-                 count as f64 / SIZE as f64 * 100.0);
-        bl.debug();
     }
 
-    if false {
-        let mut bl = Bloom::new(27, 5);
-
-        static SIZE: usize = 8000000;
-        let mut duplicates = 0;
-        for i in 0 .. SIZE {
-            let h = sha1_usize(i);
-            if bl.maybe_contains(&h) {
-                duplicates += 1;
-            }
-            bl.add(&h);
+    // Now add a bunch more, and see how many false positives we make.
+    let mut count = 0;
+    for i in SIZE .. 2*SIZE {
+        let h = hasher.of_usize(i);
+        if bl.maybe_contains(&h) {
+            count += 1;
         }
-        println!("{} duplicates during insert", duplicates);
-
-        // Verify that the filter actually works.
-        for i in 0 .. SIZE {
-            let h = sha1_usize(i);
-            if !bl.maybe_contains(&h) {
-                // h.dump();
-                panic!("Bloom filter failed");
-            }
-        }
-
-        // Now count the next step, and see how many false positives.
-        let mut count = 0;
-        for i in SIZE .. 2*SIZE {
-            let h = sha1_usize(i);
-            if bl.maybe_contains(&h) {
-                count += 1;
-            }
-        }
-        println!("{}/{} false positives ({:.5}%)", count, SIZE,
-                 count as f64 / SIZE as f64 * 100.0);
-        bl.debug();
     }
+    println!("{}/{} false positives ({:.5}%)", count, SIZE,
+             count as f64 / SIZE as f64 * 100.0);
+    bl.debug();
 }
 
 // Compute the sha1 of a usize.
