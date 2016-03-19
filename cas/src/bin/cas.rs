@@ -4,7 +4,6 @@ extern crate cas;
 
 use cas::Kind;
 use cas::pool::{ChunkSink, ChunkSource};
-use std::collections::HashSet;
 use std::error;
 use std::fs::{self, File};
 use std::io::Read;
@@ -17,16 +16,13 @@ fn main() {
     cas::pool::FilePool::create(&Path::new("/wd/test-pool/foo")).unwrap();
     let pool = cas::pool::open(&Path::new("/wd/test-pool/foo")).unwrap();
     let mut walk = Walker::new(&*pool);
-    walk.walk(&Path::new("/mnt/linaro/optee-qemu/.zfs/snapshot/tip-2016-02-10")).unwrap();
+    walk.walk(&Path::new("/mnt/linaro/optee-qemu/.zfs/snapshot/tip-2016-02-10/linux")).unwrap();
     // walk.walk(&Path::new("/mnt/linaro/.zfs/snapshot/tip-2016-02-10")).unwrap();
     println!("Total:\n{:#?}", walk.info);
 }
 
 struct Walker<'a> {
     pool: &'a ChunkSource,
-
-    // TODO: Fix the API so that this can be queried from the pool (quickly).
-    seen: HashSet<cas::Oid>,
 
     info: WalkInfo,
 }
@@ -46,7 +42,6 @@ impl<'a> Walker<'a> {
     fn new(pool: &ChunkSource) -> Walker {
         Walker {
             pool: pool,
-            seen: HashSet::new(),
             info: WalkInfo {
                 files: 0,
                 dirs: 0,
@@ -118,13 +113,21 @@ impl<'a> Walker<'a> {
             buffer.truncate(count);
             let ch = cas::chunk::new_plain(Kind::new("blob").unwrap(), buffer);
 
-            if self.seen.contains(ch.oid()) {
+            self.info.chunks += 1;
+            // self.info.bytes += count as u64;
+
+            /*
+            let payload = match ch.zdata() {
+                None => ch.data(),
+                Some(zdata) => zdata,
+            };
+            self.info.bytes += payload.len() as u64;
+            */
+            if try!(self.pool.contains_key(ch.oid())) {
                 self.info.dup_chunks += 1;
                 self.info.dup_bytes += count as u64;
             } else {
                 try!(writer.add(&*ch));
-                self.seen.insert(ch.oid().clone());
-
                 self.info.chunks += 1;
                 self.info.bytes += count as u64;
             }

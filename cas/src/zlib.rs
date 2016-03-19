@@ -14,7 +14,7 @@ use flate2::{FlateReadExt, Compression};
 pub fn deflate(buf: &[u8]) -> Option<Vec<u8>> {
     let src = Cursor::new(buf);
     let mut res = Vec::new();
-    src.zlib_encode(Compression::Default).read_to_end(&mut res).unwrap();
+    src.zlib_encode(Compression::Fast).read_to_end(&mut res).unwrap();
     if res.len() < buf.len() {
         Some(res)
     } else {
