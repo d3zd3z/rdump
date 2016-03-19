@@ -9,7 +9,6 @@ use std::path::{Path, PathBuf};
 use rusqlite::{SqliteConnection, SqliteTransaction};
 use uuid::Uuid;
 
-use chunk;
 use oid::Oid;
 use chunk::Chunk;
 use kind::Kind;
@@ -84,7 +83,7 @@ impl FilePool {
 }
 
 impl ChunkSource for FilePool {
-    fn find(&self, key: &Oid) -> Result<Box<Chunk>> {
+    fn find(&self, key: &Oid) -> Result<Chunk> {
         // Ideally, we could just query the data for NULL, but this doesn't
         // seem to be exposed properly.  Instead, retrieve it as a separate
         // column.
@@ -108,9 +107,9 @@ impl ChunkSource for FilePool {
 
                 let chunk = if size == zsize {
                     // TODO: Use new_plain_with_oid()
-                    chunk::new_plain(kind, payload)
+                    Chunk::new_plain(kind, payload)
                 } else {
-                    chunk::new_compressed(kind, key.clone(), payload, size as u32)
+                    Chunk::new_compressed(kind, key.clone(), payload, size as u32)
                 };
 
                 assert_eq!(key, chunk.oid());
@@ -211,7 +210,7 @@ impl<'a> ChunkSink for FilePoolWriter<'a> {
 }
 
 impl<'a> ChunkSource for FilePoolWriter<'a> {
-    fn find(&self, key: &Oid) -> Result<Box<Chunk>> {
+    fn find(&self, key: &Oid) -> Result<Chunk> {
         self.parent.find(key)
     }
 
@@ -259,7 +258,7 @@ mod test {
 
             for i in boundary_sizes() {
                 let ch = make_random_chunk(i, i);
-                pw.add(&*ch).unwrap();
+                pw.add(&ch).unwrap();
                 let oi = all.insert(ch.oid().clone(), ch);
                 match oi {
                     None => (),
@@ -273,7 +272,7 @@ mod test {
                     continue;
                 }
                 let ch = make_uncompressible_chunk(i, i);
-                pw.add(&*ch).unwrap();
+                pw.add(&ch).unwrap();
                 let oi = all.insert(ch.oid().clone(), ch);
                 match oi {
                     None => (),
@@ -309,7 +308,7 @@ mod test {
 
             for i in 0 .. 1000 {
                 let ch = make_kinded_random_chunk(Kind::new("back").unwrap(), 64, i);
-                pw.add(&*ch).unwrap();
+                pw.add(&ch).unwrap();
                 oids.insert(ch.oid().clone());
             }
             pw.flush().unwrap();

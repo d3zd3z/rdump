@@ -4,7 +4,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use chunk;
 use Chunk;
 use Kind;
 use Oid;
@@ -26,8 +25,8 @@ pub struct Stashed {
 }
 
 impl Stashed {
-    fn to_chunk(&self) -> Box<Chunk> {
-        chunk::new_plain(self.kind, self.data.clone())
+    fn to_chunk(&self) -> Chunk {
+        Chunk::new_plain(self.kind, self.data.clone())
     }
 }
 
@@ -41,7 +40,7 @@ impl RamPool {
 }
 
 impl ChunkSource for RamPool {
-    fn find(&self, key: &Oid) -> Result<Box<Chunk>> {
+    fn find(&self, key: &Oid) -> Result<Chunk> {
         self.chunks.borrow().get(key).map(|x| x.to_chunk()).ok_or(Error::MissingChunk)
     }
 

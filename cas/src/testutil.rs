@@ -5,7 +5,7 @@
 use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::num::Wrapping;
-use chunk;
+use chunk::Chunk;
 use kind::Kind;
 
 // A short list of words to help generate reasonably compressible
@@ -41,15 +41,15 @@ pub fn make_random_string(size: u32, index: u32) -> String {
 }
 
 // Make a random chunk.
-pub fn make_random_chunk(size: u32, index: u32) -> Box<chunk::Chunk> {
-    chunk::new_plain(Kind::new("blob").unwrap(), make_random_string(size, index).into_bytes())
+pub fn make_random_chunk(size: u32, index: u32) -> Chunk {
+    Chunk::new_plain(Kind::new("blob").unwrap(), make_random_string(size, index).into_bytes())
 }
 
-pub fn make_kinded_random_chunk(kind: Kind, size: u32, index: u32) -> Box<chunk::Chunk> {
-    chunk::new_plain(kind, make_random_string(size, index).into_bytes())
+pub fn make_kinded_random_chunk(kind: Kind, size: u32, index: u32) -> Chunk {
+    Chunk::new_plain(kind, make_random_string(size, index).into_bytes())
 }
 
-pub fn make_uncompressible_chunk(size: u32, index: u32) -> Box<chunk::Chunk> {
+pub fn make_uncompressible_chunk(size: u32, index: u32) -> Chunk {
     use rand::{Rng, SeedableRng, XorShiftRng};
     use std::iter::repeat;
 
@@ -63,7 +63,7 @@ pub fn make_uncompressible_chunk(size: u32, index: u32) -> Box<chunk::Chunk> {
         println!("Buf of {:x} bytes", size);
         buf.dump();
     } */
-    chunk::new_plain(Kind::new("unco").unwrap(), buf)
+    Chunk::new_plain(Kind::new("unco").unwrap(), buf)
 }
 
 // Generate a useful series of sizes, build around powers of two and

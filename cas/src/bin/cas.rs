@@ -111,7 +111,7 @@ impl<'a> Walker<'a> {
             }
 
             buffer.truncate(count);
-            let ch = cas::chunk::new_plain(Kind::new("blob").unwrap(), buffer);
+            let ch = cas::Chunk::new_plain(Kind::new("blob").unwrap(), buffer);
 
             self.info.chunks += 1;
             // self.info.bytes += count as u64;
@@ -127,7 +127,7 @@ impl<'a> Walker<'a> {
                 self.info.dup_chunks += 1;
                 self.info.dup_bytes += count as u64;
             } else {
-                try!(writer.add(&*ch));
+                try!(writer.add(&ch));
                 self.info.chunks += 1;
                 self.info.bytes += count as u64;
             }

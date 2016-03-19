@@ -21,7 +21,7 @@ mod ram;
 /// references to them.
 pub trait ChunkSource {
     /// Return a new chunk with the given key.
-    fn find(&self, key: &Oid) -> Result<Box<Chunk>>;
+    fn find(&self, key: &Oid) -> Result<Chunk>;
 
     /// Is this key present in the store.
     fn contains_key(&self, key: &Oid) -> Result<bool>;
