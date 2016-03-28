@@ -9,8 +9,7 @@ use std::io::ErrorKind;
 use std::iter;
 use cas;
 use cas::pool::ChunkSink;
-use cas::chunk;
-use cas::{Kind, Oid};
+use cas::{Chunk, Kind, Oid};
 
 pub struct DataWrite<'a> {
     sink: &'a ChunkSink,
@@ -39,8 +38,8 @@ impl<'a> DataWrite<'a> {
                 break;
             }
 
-            let ch = chunk::new_plain(Kind::new("blob").unwrap(), buf);
-            try!(self.sink.add(&*ch));
+            let ch = Chunk::new_plain(Kind::new("blob").unwrap(), buf);
+            try!(self.sink.add(&ch));
             try!(ind.add(ch.oid()));
             // println!("write {} bytes", ch.data_len());
         }

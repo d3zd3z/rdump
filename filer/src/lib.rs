@@ -13,7 +13,7 @@ extern crate log;
 extern crate env_logger;
 
 // For now, reuse the Error/Result types from cas.
-type Result<T> = cas::Result<T>;
+pub type Result<T> = cas::Result<T>;
 
 // #[cfg(test)]
 // mod itrack;

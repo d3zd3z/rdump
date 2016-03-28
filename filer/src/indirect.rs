@@ -4,7 +4,7 @@
 
 use Result;
 use cas::pool::ChunkSink;
-use cas::chunk;
+use cas::Chunk;
 use cas::Kind;
 use cas::Oid;
 
@@ -108,8 +108,8 @@ impl<'a> Write<'a> {
             trace!("Collapse: {}, {}, {}", self.prefix, blevel, self.level);
             let kind = Kind::new(&format!("{}{}", self.prefix, self.level - blevel - 1)).unwrap();
             // let kind = Kind::new(&format!("{}0", self.prefix)).unwrap();
-            let ch = chunk::new_plain(kind, buf);
-            try!(self.sink.add(&*ch));
+            let ch = Chunk::new_plain(kind, buf);
+            try!(self.sink.add(&ch));
 
             // TODO: Implement a move out of the oid?
             trace!("collapsed: {}", ch.oid().to_hex());
@@ -122,8 +122,8 @@ impl<'a> Write<'a> {
         trace!("Running finish: {} levels, l={}", self.buffers.len(), self.level);
         if self.buffers.is_empty() {
             // TODO: Make this more general.
-            let ch = chunk::new_plain(Kind::new("NULL").unwrap(), vec![]);
-            try!(self.sink.add(&*ch));
+            let ch = Chunk::new_plain(Kind::new("NULL").unwrap(), vec![]);
+            try!(self.sink.add(&ch));
             Ok(ch.oid().clone())
         } else {
             loop {

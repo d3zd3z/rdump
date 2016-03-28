@@ -14,7 +14,7 @@ pub enum Node {
     },
 }
 
-pub fn decode(chunk: Box<Chunk>) -> cas::Result<Node> {
+pub fn decode(chunk: Chunk) -> cas::Result<Node> {
     let kind = chunk.kind().to_string();
 
     if &kind[0..3] == "IND" {
