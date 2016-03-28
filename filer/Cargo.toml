@@ -8,16 +8,16 @@ license = "MIT"
 [dependencies]
 
 # TODO: Test-only dependency
-uuid = "*"
-log = "*"
-env_logger = "*"
+uuid = "0.1.18"
+log = "0.3.5"
+env_logger = "0.3.2"
 
 [dependencies.cas]
 path = "../cas"
 
 [dev-dependencies]
-tempdir = "*"
-rand = "*"
+tempdir = "0.3.4"
+rand = "0.3.14"
 
 # Optimize the tests.  It compiles slower, and is harder to debug, but
 # some of the tests are rather slow.  The debug assertions are still
