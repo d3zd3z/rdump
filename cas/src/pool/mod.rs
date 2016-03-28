@@ -50,8 +50,8 @@ pub trait ChunkSink {
 }
 
 /// Attempt to open a pool for reading, auto-determining the type.
-pub fn open(path: &Path) -> Result<Box<ChunkSource>> {
-    let meta = try!(fs::metadata(path.join("data.db")));
+pub fn open<P: AsRef<Path>>(path: P) -> Result<Box<ChunkSource>> {
+    let meta = try!(fs::metadata(path.as_ref().join("data.db")));
 
     if !meta.is_file() {
         return Err(Error::NotAPool);

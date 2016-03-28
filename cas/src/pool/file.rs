@@ -24,7 +24,8 @@ pub struct FilePool {
 }
 
 impl FilePool {
-    pub fn create(path: &Path) -> Result<()> {
+    pub fn create<P: AsRef<Path>>(path: P) -> Result<()> {
+        let path = path.as_ref();
         try!(fs::create_dir(path));
         try!(fs::create_dir(&path.join("blobs")));
         let db = try!(SqliteConnection::open(&path.join("data.db")));
@@ -38,7 +39,8 @@ impl FilePool {
         Ok(())
     }
 
-    pub fn open(path: &Path) -> Result<FilePool> {
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<FilePool> {
+        let path = path.as_ref();
         let db = try!(SqliteConnection::open(&path.join("data.db")));
 
         let _inabilities = try!(POOL_SCHEMA.check(&db));
