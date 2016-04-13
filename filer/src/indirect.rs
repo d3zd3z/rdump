@@ -69,7 +69,7 @@ impl<'a> Write<'a> {
             self.push_buffer();
         }
 
-        self.buf_mut().extend(oid.bytes.iter().map(|&x| x));
+        self.buf_mut().extend(oid.0.iter().map(|&x| x));
         /*
         unsafe {
             use std::ptr;

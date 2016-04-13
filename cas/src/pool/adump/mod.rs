@@ -101,7 +101,7 @@ impl RamIndex {
 
             // Write out the hashes themselves.
             for h in self.0.keys() {
-                try!(ofd.write_all(&h.bytes));
+                try!(ofd.write_all(&h.0));
             }
 
             // Write out the offset table.

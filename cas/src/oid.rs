@@ -14,9 +14,7 @@ use rustc_serialize::hex::{ToHex, FromHex};
 
 // TODO: Derive our own Debug and Hash.
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Clone, Hash)]
-pub struct Oid {
-    pub bytes: [u8; 20],
-}
+pub struct Oid(pub [u8; 20]);
 
 // Simple binding to the crypto library from OpenSSL.
 mod openssl {
@@ -75,7 +73,7 @@ impl Context {
     fn finish(&mut self) -> Oid {
         unsafe {
             let mut result: Oid = mem::uninitialized();
-            openssl::SHA1_Final(&mut result.bytes[0], &mut self.core);
+            openssl::SHA1_Final(&mut result.0[0], &mut self.core);
             result
         }
     }
@@ -91,7 +89,7 @@ fn test_context() {
 
 impl Oid {
     pub fn to_hex(&self) -> String {
-        self.bytes[..].to_hex()
+        self.0[..].to_hex()
     }
 
     pub fn from_hex(text: &str) -> Option<Oid> {
@@ -108,9 +106,9 @@ impl Oid {
         }
 
         let mut result: Oid = unsafe { mem::uninitialized() };
-        // bytes::copy_memory(bytes, &mut result.bytes[..]);
+        // bytes::copy_memory(bytes, &mut result.0[..]);
         for i in 0..20 {
-            result.bytes[i] = bytes[i];
+            result.0[i] = bytes[i];
         }
         result
     }
@@ -135,7 +133,7 @@ impl Oid {
 impl Index<usize> for Oid {
     type Output = u8;
     fn index(&self, index: usize) -> &u8 {
-        &self.bytes[index]
+        &self.0[index]
     }
 }
 
@@ -147,8 +145,8 @@ impl Oid {
         let mut result = (*self).clone();
         let mut pos = 19;
         loop {
-            let tmp = (result.bytes[pos] as i16 + adjust) as u8;
-            result.bytes[pos] = tmp;
+            let tmp = (result.0[pos] as i16 + adjust) as u8;
+            result.0[pos] = tmp;
             if tmp == stop {
                 if pos == 0 {
                     break;
@@ -173,7 +171,7 @@ impl Oid {
     // is rather meaningless (and would break use of the Oid in a test),
     // but is useful when generating Oids quickly based on randomness.
     pub fn as_mut_bytes(&mut self) -> &mut [u8] {
-        &mut self.bytes
+        &mut self.0
     }
 }
 

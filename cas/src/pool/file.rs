@@ -91,7 +91,7 @@ impl ChunkSource for FilePool {
         // column.
         let mut stmt = try!(self.db.prepare(
                 "SELECT kind, size, zsize, data, data IS NULL FROM blobs WHERE oid = ?"));
-        let mut rows = try!(stmt.query(&[&&key.bytes[..]]));
+        let mut rows = try!(stmt.query(&[&&key.0[..]]));
         match rows.next() {
             None => Err(Error::MissingChunk),
             Some(row) => {
@@ -124,7 +124,7 @@ impl ChunkSource for FilePool {
     fn contains_key(&self, key: &Oid) -> Result<bool> {
         let count: i32 = try!(self.db.query_row(
                 "SELECT COUNT(*) FROM blobs WHERE oid = ?",
-                &[&&key.bytes[..]],
+                &[&&key.0[..]],
                 |row| {
                     row.get(0)
                 }));
@@ -173,7 +173,7 @@ impl<'a> ChunkSink for FilePoolWriter<'a> {
             try!(self.parent.db.execute(
                     "INSERT INTO blobs (oid, kind, size, zsize, data)
                     VALUES (?, ?, ?, ?, ?)",
-                    &[&&chunk.oid().bytes[..],
+                    &[&&chunk.oid().0[..],
                     &chunk.kind().to_string(),
                     &(chunk.data_len() as i32),
                     &(payload.len() as i32),
@@ -196,7 +196,7 @@ impl<'a> ChunkSink for FilePoolWriter<'a> {
             try!(self.parent.db.execute(
                     "INSERT INTO blobs (oid, kind, size, zsize)
                      VALUES (?, ?, ?, ?)",
-                    &[&&chunk.oid().bytes[..],
+                    &[&&chunk.oid().0[..],
                       &chunk.kind().to_string(),
                       &(chunk.data_len() as i32),
                       &(payload.len() as i32)]));
