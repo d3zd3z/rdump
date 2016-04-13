@@ -59,7 +59,7 @@ mod aes {
         #[allow(dead_code)]
         pub fn new() -> TestAes {
             let mut ciphers = vec![];
-            for i in 0 .. 1 {
+            for i in 0 .. 2 {
                 let mut cipher = Cipher::new(*TOKEN, CIPHER_AES128, MODE_ECB, Flags::empty()).unwrap();
                 let mut key = [0u8; 16];
                 key[0] = i;
@@ -113,11 +113,11 @@ fn main() {
 
     // TODO: Make this more general.
     // let mut hasher = TestFnv;
-    // let mut hasher = TestSha1;
-    let mut hasher = TestAes::new();
+    let mut hasher = TestSha1;
+    // let mut hasher = TestAes::new();
 
     let mut bl = Bloom::new(26, 3);
-    static SIZE: usize = 8000000;
+    static SIZE: usize = 7000000;
     let mut duplicates = 0;
     for i in 0 .. SIZE {
         let h = hasher.of_usize(i);
@@ -126,7 +126,8 @@ fn main() {
         }
         bl.add(&h);
     }
-    println!("{} duplicates during insert", duplicates);
+    println!("{} duplicates during insert {:.5}%", duplicates,
+             duplicates as f64 / SIZE as f64 * 100.0);
 
     // Verify that the filter actually works.
     for i in 0 .. SIZE {
