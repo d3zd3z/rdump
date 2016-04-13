@@ -9,7 +9,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use super::Error;
 use super::Result;
 
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub struct Kind {
     pub raw: u32,
 }

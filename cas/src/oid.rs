@@ -6,6 +6,7 @@
 //! the SHA-1 hash of the `Kind` followed by the payload itself.
 
 use std::mem;
+use std::ops::Index;
 // use std::slice::bytes;
 use kind::Kind;
 
@@ -121,8 +122,21 @@ impl Oid {
         ctx.finish()
     }
 
+    // Generate an OID from an integer.
+    pub fn from_u32(num: u32) -> Oid {
+        Self::from_data(Kind::new("blob").unwrap(), format!("{}", num).as_bytes())
+    }
+
     // Simple accessor to get the size.
     pub fn size() -> usize { 20 }
+}
+
+// Allow the Oid to be indexed to access the bytes.
+impl Index<usize> for Oid {
+    type Output = u8;
+    fn index(&self, index: usize) -> &u8 {
+        &self.bytes[index]
+    }
 }
 
 #[cfg(test)]
@@ -153,6 +167,13 @@ impl Oid {
 
     pub fn dec(&self) -> Oid {
         self.tweak(-1, 255)
+    }
+
+    // Sometimes, it is useful for a test to mutate an Oid.  Normally, this
+    // is rather meaningless (and would break use of the Oid in a test),
+    // but is useful when generating Oids quickly based on randomness.
+    pub fn as_mut_bytes(&mut self) -> &mut [u8] {
+        &mut self.bytes
     }
 }
 

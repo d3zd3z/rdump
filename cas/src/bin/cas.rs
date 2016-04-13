@@ -16,7 +16,8 @@ fn main() {
     cas::pool::FilePool::create(&Path::new("/wd/test-pool/foo")).unwrap();
     let pool = cas::pool::open(&Path::new("/wd/test-pool/foo")).unwrap();
     let mut walk = Walker::new(&*pool);
-    walk.walk(&Path::new("/mnt/linaro/optee-qemu/.zfs/snapshot/tip-2016-02-10/linux")).unwrap();
+    // walk.walk(&Path::new("/mnt/linaro/optee-qemu/.zfs/snapshot/tip-2016-02-10/linux")).unwrap();
+    walk.walk(&Path::new("/mnt/linaro/optee-qemu/linux")).unwrap();
     // walk.walk(&Path::new("/mnt/linaro/.zfs/snapshot/tip-2016-02-10")).unwrap();
     println!("Total:\n{:#?}", walk.info);
 }

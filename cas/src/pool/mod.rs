@@ -15,6 +15,7 @@ pub use self::ram::RamPool;
 mod sql;
 mod file;
 mod ram;
+pub mod adump;
 
 /// A source of chunks.  This is similar to a `Map`, except that the values
 /// aren't kept in memory, so we have to return real items rather than
