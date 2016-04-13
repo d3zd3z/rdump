@@ -122,7 +122,7 @@ impl RamIndex {
             // Write out the kind map itself.
             try!(ofd.write_u32::<LittleEndian>(kinds.len() as u32));
             for &k in &kinds {
-                try!(ofd.write_u32::<LittleEndian>(k.raw));
+                try!(ofd.write_u32::<LittleEndian>(k.0));
             }
 
             // Then write out the values.

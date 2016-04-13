@@ -10,9 +10,7 @@ use super::Error;
 use super::Result;
 
 #[derive(PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
-pub struct Kind {
-    pub raw: u32,
-}
+pub struct Kind(pub u32);
 
 impl Kind {
     pub fn new(text: &str) -> Result<Kind> {
@@ -25,15 +23,13 @@ impl Kind {
         }
 
         let mut rd = Cursor::new(text.as_bytes());
-        Ok(Kind {
-            raw: try!(rd.read_u32::<LittleEndian>()),
-        })
+        Ok(Kind(try!(rd.read_u32::<LittleEndian>())))
     }
 
     // Get the kind back as bytes.
     pub fn bytes(self) -> Vec<u8> {
         let mut result = Vec::with_capacity(4);
-        result.write_u32::<LittleEndian>(self.raw).unwrap();
+        result.write_u32::<LittleEndian>(self.0).unwrap();
         result
     }
 }
@@ -67,7 +63,7 @@ mod test {
 
     #[test]
     fn test_new() {
-        assert_eq!(Kind::new("blob").unwrap(), Kind { raw: 0x626f6c62 });
+        assert_eq!(Kind::new("blob").unwrap(), Kind(0x626f6c62));
 
         assert_err!(Kind::new("bloby"), Error::BadKindLength);
         assert_err!(Kind::new("blo"), Error::BadKindLength);
