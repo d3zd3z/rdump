@@ -549,6 +549,7 @@ mod test {
     use std::collections::BTreeMap;
     use {Kind, Oid};
     use super::*;
+    use tempdir::TempDir;
 
     struct Tracker {
         nodes: BTreeMap<u32, Kind>,
@@ -614,6 +615,8 @@ mod test {
 
     #[test]
     fn test_index() {
+        let tmp = TempDir::new("testindex").unwrap();
+
         let mut track = Tracker::new();
         let mut r1 = IndexPair::empty();
 
@@ -623,9 +626,10 @@ mod test {
 
         track.check(&r1);
 
-        IndexFile::save("r1.idx", 10000, &r1).unwrap();
+        let name1 = tmp.path().join("r1.idx");
+        IndexFile::save(&name1, 10000, &r1).unwrap();
 
-        let mut r2 = IndexPair::load("r1.idx" /*, 10000 */).unwrap();
+        let mut r2 = IndexPair::load(&name1 /*, 10000 */).unwrap();
         track.check(&r2);
 
         // Add some more.
@@ -634,9 +638,10 @@ mod test {
         }
         track.check(&r2);
 
-        IndexFile::save("r2.idx", 20000, &r2).unwrap();
+        let name2 = tmp.path().join("r2.idx");
+        IndexFile::save(&name2, 20000, &r2).unwrap();
 
-        let r3 = IndexPair::load("r2.idx" /*, 20000 */).unwrap();
+        let r3 = IndexPair::load(&name2 /*, 20000 */).unwrap();
         track.check(&r3);
     }
 
