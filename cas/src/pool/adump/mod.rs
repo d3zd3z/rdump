@@ -167,7 +167,7 @@ pub struct IndexFile {
 impl IndexFile {
     /// Try loading the given named index file, returning it if it is
     /// valid.
-    pub fn load<P: AsRef<Path>>(path: P) -> Result<IndexFile> {
+    pub fn load<P: AsRef<Path>>(path: P, size: u32) -> Result<IndexFile> {
         let f = try!(File::open(path));
         let mut rd = BufReader::new(f);
 
@@ -179,9 +179,13 @@ impl IndexFile {
 
         let version = try!(rd.read_u32::<LittleEndian>());
         if version != 4 {
+            return Err(Error::InvalidIndex("Version mismatch".to_owned()));
         }
 
-        let _file_size = try!(rd.read_u32::<LittleEndian>());
+        let file_size = try!(rd.read_u32::<LittleEndian>());
+        if file_size != size {
+            return Err(Error::InvalidIndex("Index size mismatch".to_owned()));
+        }
         // TODO: Process this
         // The file_size is the number of bytes in the pool file.  If this
         // differs, it indicates that this index doesn't match the file,
@@ -413,9 +417,9 @@ pub struct IndexPair {
 }
 
 impl IndexPair {
-    pub fn load<P: AsRef<Path>>(path: P) -> Result<IndexPair> {
+    pub fn load<P: AsRef<Path>>(path: P, size: u32) -> Result<IndexPair> {
         Ok(IndexPair {
-            file: try!(IndexFile::load(path)),
+            file: try!(IndexFile::load(path, size)),
             ram: RamIndex::new(),
         })
     }
@@ -457,6 +461,7 @@ impl<'a> IntoIterator for &'a IndexPair {
 
 #[cfg(test)]
 mod test {
+    use Error;
     use std::collections::BTreeMap;
     use {Kind, Oid};
     use super::*;
@@ -540,7 +545,18 @@ mod test {
         let name1 = tmp.path().join("r1.idx");
         IndexFile::save(&name1, 10000, &r1).unwrap();
 
-        let mut r2 = IndexPair::load(&name1 /*, 10000 */).unwrap();
+        match IndexPair::load(&name1, 9999) {
+            Err(Error::InvalidIndex(_)) => (),
+            Err(e) => panic!("Unexpected error: {:?}", e),
+            Ok(_) => panic!("Shouldn't be able to load index with size incorrect"),
+        }
+
+        match IndexPair::load(&tmp.path().join("r1.bad"), 10000) {
+            Err(_) => (),
+            Ok(_) => panic!("Shouldn't be able to load non-existant index"),
+        }
+
+        let mut r2 = IndexPair::load(&name1, 10000).unwrap();
         track.check(&r2);
 
         // Add some more.
@@ -552,7 +568,7 @@ mod test {
         let name2 = tmp.path().join("r2.idx");
         IndexFile::save(&name2, 20000, &r2).unwrap();
 
-        let r3 = IndexPair::load(&name2 /*, 20000 */).unwrap();
+        let r3 = IndexPair::load(&name2, 20000).unwrap();
         track.check(&r3);
     }
 
