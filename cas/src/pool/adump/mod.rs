@@ -7,7 +7,9 @@ use Kind;
 use Oid;
 use Result;
 use std::collections::BTreeMap;
+use std::collections::btree_map;
 use std::fs::{self, File};
+use std::iter::Chain;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -18,7 +20,7 @@ pub trait Index {
 
 pub trait IndexUpdate {
     // Like a map insert, but panics if the key is already present.
-    fn insert(&mut self, key: Oid, kind: Kind, offset: u32);
+    fn insert(&mut self, key: Oid, offset: u32, kind: Kind);
 }
 
 // The RAM Index
@@ -181,7 +183,7 @@ impl Index for RamIndex {
 }
 
 impl IndexUpdate for RamIndex {
-    fn insert(&mut self, key: Oid, kind: Kind, offset: u32) {
+    fn insert(&mut self, key: Oid, offset: u32, kind: Kind) {
         match self.0.insert(key, IndexInfo {
             kind: kind,
             offset: offset,
@@ -189,6 +191,34 @@ impl IndexUpdate for RamIndex {
             None => (),
             Some(_) => panic!("Duplicate key inserted into index"),
         }
+    }
+}
+
+pub struct IterItem<'a> {
+    oid: &'a Oid,
+    kind: Kind,
+    offset: u32,
+}
+
+impl<'a> IntoIterator for &'a RamIndex {
+    type Item = IterItem<'a>;
+    type IntoIter = Iter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Iter(self.0.iter())
+    }
+}
+
+pub struct Iter<'a>(btree_map::Iter<'a, Oid, IndexInfo>);
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = IterItem<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|(oid, info)| IterItem {
+            oid: oid,
+            kind: info.kind,
+            offset: info.offset
+        })
     }
 }
 
@@ -274,7 +304,7 @@ impl IndexFile {
             kind_names.push(try!(Kind::new(&text)));
         }
 
-        let mut kinds = vec![0u8; kind_count];
+        let mut kinds = vec![0u8; size];
         try!(rd.read_exact(&mut kinds));
 
         Ok(IndexFile {
@@ -286,8 +316,231 @@ impl IndexFile {
         })
     }
 
+    /// Construct an empty index, that contains no values.
+    pub fn empty() -> IndexFile {
+        IndexFile {
+            top: vec![0; 256],
+            offsets: vec![],
+            oids: vec![],
+            kind_names: vec![],
+            kinds: vec![],
+        }
+    }
+
+    /// Save an index from something that can be iterated over.
+    pub fn save<'a, P: AsRef<Path>, I>(path: P, size: u32, index: I) -> Result<()>
+        where I: IntoIterator<Item=IterItem<'a>>
+    {
+        let mut nodes: Vec<IterItem<'a>> = index.into_iter().collect();
+        nodes.sort_by_key(|n| n.oid);
+        let nodes = nodes;
+
+        let tmp_name = try!(tmpify(path.as_ref()));
+        println!("tmp: {:?} -> {:?}", tmp_name, path.as_ref());
+        {
+            let ofd = try!(File::create(&tmp_name));
+            let mut ofd = BufWriter::new(ofd);
+
+            try!(ofd.write_all(b"ldumpidx"));
+            try!(ofd.write_u32::<LittleEndian>(4));
+            try!(ofd.write_u32::<LittleEndian>(size));
+
+            // Write the top-level index.
+            let top = compute_top(&nodes);
+            for elt in top {
+                try!(ofd.write_u32::<LittleEndian>(elt));
+            }
+
+            // Write out the hashes themselves.
+            for n in &nodes {
+                try!(ofd.write_all(&n.oid.0));
+            }
+
+            // Write out the offset table.
+            for n in &nodes {
+                try!(ofd.write_u32::<LittleEndian>(n.offset));
+            }
+
+            // Compute the kind map.
+            let mut kinds = vec![];
+            let mut kind_map = BTreeMap::new();
+            for n in &nodes {
+                if !kind_map.contains_key(&n.kind) {
+                    kind_map.insert(n.kind, kinds.len());
+                    kinds.push(n.kind);
+                }
+            }
+
+            // Write out the kind map itself.
+            try!(ofd.write_u32::<LittleEndian>(kinds.len() as u32));
+            for &k in &kinds {
+                try!(ofd.write_u32::<LittleEndian>(k.0));
+            }
+
+            // Then write out the values.
+            let mut buf = Vec::with_capacity(nodes.len());
+            for n in &nodes {
+                buf.push(kind_map[&n.kind] as u8);
+            }
+            try!(ofd.write_all(&buf));
+        }
+
+        // It worked, so do the atomic rename/overwrite.  'std' tries to do
+        // this sane behavior on Windows as well.
+        try!(fs::rename(tmp_name, path.as_ref()));
+
+        Ok(())
+    }
+
     pub fn len(&self) -> usize {
         self.offsets.len()
+    }
+
+    /// Scan this index for a given hash.
+    fn find(&self, key: &Oid) -> Option<usize> {
+        let first_byte = key.0[0] as usize;
+
+        let low = if first_byte > 0 {
+            self.top[first_byte - 1] as usize
+        } else {
+            0
+        };
+        let high = self.top[first_byte] as usize;
+        match self.oids[low..high].binary_search(key) {
+            Ok(index) => Some(index + low),
+            Err(_) => None,
+        }
+    }
+
+    pub fn iter(&self) -> FIter {
+        self.into_iter()
+    }
+}
+
+impl Index for IndexFile {
+    fn contains_key(&self, key: &Oid) -> bool {
+        self.find(key).is_some()
+    }
+
+    fn get(&self, key: &Oid) -> Option<IndexInfo> {
+        self.find(key).map(|num| {
+            IndexInfo {
+                offset: self.offsets[num],
+                kind: self.kind_names[self.kinds[num] as usize],
+            }
+        })
+    }
+}
+
+impl<'a> IntoIterator for &'a IndexFile {
+    type Item = IterItem<'a>;
+    type IntoIter = FIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        FIter {
+            parent: self,
+            pos: 0,
+        }
+    }
+}
+
+pub struct FIter<'a> {
+    parent: &'a IndexFile,
+    pos: usize,
+}
+
+impl<'a> Iterator for FIter<'a> {
+    type Item = IterItem<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos >= self.parent.len() {
+            None
+        } else {
+            let pos = self.pos;
+            self.pos = pos + 1;
+
+            Some(IterItem {
+                oid: &self.parent.oids[pos],
+                kind: self.parent.kind_names[self.parent.kinds[pos] as usize],
+                offset: self.parent.offsets[pos],
+            })
+        }
+    }
+}
+
+fn compute_top<'a>(nodes: &[IterItem<'a>]) -> Vec<u32> {
+    let mut top = Vec::with_capacity(256);
+
+    let mut iter = nodes.iter().enumerate().peekable();
+    for first in 0 .. 256 {
+        // Scan until we hit a value that is too large.
+        loop {
+            match iter.peek() {
+                None => break,
+                Some(&(_, key)) => {
+                    if key.oid[0] as usize > first {
+                        break;
+                    }
+                    iter.next();
+                },
+            }
+        }
+        let index = match iter.peek() {
+            None => nodes.len(),
+            Some(&(n, _)) => n,
+        };
+        top.push(index as u32);
+    }
+    top
+}
+
+/// An IndexPair combines a possibly loaded index with a ram index allowing
+/// for update.  The whole pair can then be written to a new index file,
+/// and loaded later.
+pub struct IndexPair {
+    file: IndexFile,
+    ram: RamIndex,
+}
+
+impl IndexPair {
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<IndexPair> {
+        Ok(IndexPair {
+            file: try!(IndexFile::load(path)),
+            ram: RamIndex::new(),
+        })
+    }
+
+    pub fn empty() -> IndexPair {
+        IndexPair {
+            file: IndexFile::empty(),
+            ram: RamIndex::new(),
+        }
+    }
+}
+
+impl Index for IndexPair {
+    fn contains_key(&self, key: &Oid) -> bool {
+        self.ram.contains_key(key) ||
+            self.file.contains_key(key)
+    }
+
+    fn get(&self, key: &Oid) -> Option<IndexInfo> {
+        self.ram.get(key)
+            .or_else(|| self.file.get(key))
+    }
+}
+
+impl IndexUpdate for IndexPair {
+    fn insert(&mut self, key: Oid, offset: u32, kind: Kind) {
+        self.ram.insert(key, offset, kind);
+    }
+}
+
+impl<'a> IntoIterator for &'a IndexPair {
+    type Item = IterItem<'a>;
+    type IntoIter = Chain<FIter<'a>, Iter<'a>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.file.iter().chain(&self.ram)
     }
 }
 
@@ -324,7 +577,7 @@ mod test {
                 panic!("Test error, duplicate: {}", num);
             }
             let kind = self.kinds[num as usize % self.kinds.len()];
-            index.insert(Oid::from_u32(num), kind, num);
+            index.insert(Oid::from_u32(num), num, kind);
             self.nodes.insert(num, kind);
         }
 
@@ -362,16 +615,34 @@ mod test {
     #[test]
     fn test_index() {
         let mut track = Tracker::new();
-        let mut ri = RamIndex::new();
+        let mut r1 = IndexPair::empty();
 
         for ofs in 0 .. 10000 {
-            track.add(&mut ri, ofs);
+            track.add(&mut r1, ofs);
         }
 
-        track.check(&ri);
+        track.check(&r1);
 
-        ri.save("haha.idx", 12345).unwrap();
+        IndexFile::save("r1.idx", 10000, &r1).unwrap();
 
-        let r2 = IndexFile::load("haha.idx" /*, 12345*/).unwrap();
+        let mut r2 = IndexPair::load("r1.idx" /*, 10000 */).unwrap();
+        track.check(&r2);
+
+        // Add some more.
+        for ofs in 10000 .. 20000 {
+            track.add(&mut r2, ofs);
+        }
+        track.check(&r2);
+
+        IndexFile::save("r2.idx", 20000, &r2).unwrap();
+
+        let r3 = IndexPair::load("r2.idx" /*, 20000 */).unwrap();
+        track.check(&r3);
+    }
+
+    #[test]
+    fn test_empty() {
+        let fi = IndexFile::empty();
+        assert!(!fi.contains_key(&Oid::from_u32(1)));
     }
 }
