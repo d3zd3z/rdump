@@ -3,8 +3,6 @@
 
 // #![allow(dead_code)]
 
-#![cfg_attr(feature = "nightly", feature(test))]
-
 extern crate byteorder;
 extern crate libc;
 extern crate rustc_serialize;
@@ -14,17 +12,6 @@ extern crate uuid;
 
 // #[cfg(test)]
 extern crate rand;
-
-#[cfg(all(feature = "nightly", test))]
-extern crate test;
-
-#[cfg(test)]
-extern crate crypto;
-
-/*
-#[cfg(test)]
-extern crate test;
-*/
 
 #[cfg(test)]
 extern crate tempdir;
