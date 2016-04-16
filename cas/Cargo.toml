@@ -20,9 +20,6 @@ rand = "0.3.14"
 [dev-dependencies]
 tempdir = "0.3.4"
 
-# Possibly temp for benchmarking
-rust-crypto = "0.2.34"
-
 # This binary is mostly for testing purposes.  It exercises the
 # library extensively.
 [[bin]]
