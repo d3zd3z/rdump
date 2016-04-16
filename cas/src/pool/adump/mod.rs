@@ -1,6 +1,5 @@
 // Adump file format.
 
-// use byteorder::{
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use Error;
 use Kind;
@@ -154,9 +153,9 @@ fn tmpify(path: &Path) -> Result<PathBuf> {
 // to compare these other than two try both approaches, and benchmark the
 // results.
 //
-// This IndexFile uses the byteorder crate to read and decode the data.
+// This FileIndex uses the byteorder crate to read and decode the data.
 #[allow(dead_code)]
-pub struct IndexFile {
+pub struct FileIndex {
     top: Vec<u32>,
     offsets: Vec<u32>,
     oids: Vec<Oid>,
@@ -164,10 +163,10 @@ pub struct IndexFile {
     kinds: Vec<u8>,
 }
 
-impl IndexFile {
+impl FileIndex {
     /// Try loading the given named index file, returning it if it is
     /// valid.
-    pub fn load<P: AsRef<Path>>(path: P, size: u32) -> Result<IndexFile> {
+    pub fn load<P: AsRef<Path>>(path: P, size: u32) -> Result<FileIndex> {
         let f = try!(File::open(path));
         let mut rd = BufReader::new(f);
 
@@ -222,7 +221,7 @@ impl IndexFile {
         let mut kinds = vec![0u8; size];
         try!(rd.read_exact(&mut kinds));
 
-        Ok(IndexFile {
+        Ok(FileIndex {
             top: top,
             offsets: offsets,
             oids: oids,
@@ -232,8 +231,8 @@ impl IndexFile {
     }
 
     /// Construct an empty index, that contains no values.
-    pub fn empty() -> IndexFile {
-        IndexFile {
+    pub fn empty() -> FileIndex {
+        FileIndex {
             top: vec![0; 256],
             offsets: vec![],
             oids: vec![],
@@ -332,7 +331,7 @@ impl IndexFile {
     }
 }
 
-impl Index for IndexFile {
+impl Index for FileIndex {
     fn contains_key(&self, key: &Oid) -> bool {
         self.find(key).is_some()
     }
@@ -347,7 +346,7 @@ impl Index for IndexFile {
     }
 }
 
-impl<'a> IntoIterator for &'a IndexFile {
+impl<'a> IntoIterator for &'a FileIndex {
     type Item = IterItem<'a>;
     type IntoIter = FIter<'a>;
 
@@ -360,7 +359,7 @@ impl<'a> IntoIterator for &'a IndexFile {
 }
 
 pub struct FIter<'a> {
-    parent: &'a IndexFile,
+    parent: &'a FileIndex,
     pos: usize,
 }
 
@@ -412,21 +411,21 @@ fn compute_top<'a>(nodes: &[IterItem<'a>]) -> Vec<u32> {
 /// for update.  The whole pair can then be written to a new index file,
 /// and loaded later.
 pub struct IndexPair {
-    file: IndexFile,
+    file: FileIndex,
     ram: RamIndex,
 }
 
 impl IndexPair {
     pub fn load<P: AsRef<Path>>(path: P, size: u32) -> Result<IndexPair> {
         Ok(IndexPair {
-            file: try!(IndexFile::load(path, size)),
+            file: try!(FileIndex::load(path, size)),
             ram: RamIndex::new(),
         })
     }
 
     pub fn empty() -> IndexPair {
         IndexPair {
-            file: IndexFile::empty(),
+            file: FileIndex::empty(),
             ram: RamIndex::new(),
         }
     }
@@ -545,7 +544,7 @@ mod test {
         track.check(&r1);
 
         let name1 = tmp.path().join("r1.idx");
-        IndexFile::save(&name1, COUNT, &r1).unwrap();
+        FileIndex::save(&name1, COUNT, &r1).unwrap();
 
         match IndexPair::load(&name1, COUNT-1) {
             Err(Error::InvalidIndex(_)) => (),
@@ -568,7 +567,7 @@ mod test {
         track.check(&r2);
 
         let name2 = tmp.path().join("r2.idx");
-        IndexFile::save(&name2, 2*COUNT, &r2).unwrap();
+        FileIndex::save(&name2, 2*COUNT, &r2).unwrap();
 
         let r3 = IndexPair::load(&name2, 2*COUNT).unwrap();
         track.check(&r3);
@@ -579,7 +578,7 @@ mod test {
 
     #[test]
     fn test_empty() {
-        let fi = IndexFile::empty();
+        let fi = FileIndex::empty();
         assert!(!fi.contains_key(&Oid::from_u32(1)));
     }
 }

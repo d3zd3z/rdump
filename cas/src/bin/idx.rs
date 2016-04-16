@@ -3,8 +3,7 @@
 extern crate cas;
 
 use cas::{Kind, Oid};
-// use cas::pool::adump::IndexFile;
-use cas::pool::adump::{RamIndex /*, RamInfo */};
+use cas::pool::adump::{FileIndex, RamIndex /*, RamInfo */};
 
 fn main () {
     /*
@@ -33,5 +32,5 @@ fn main () {
             kinds[ofs as usize % kinds.len()]);
     }
 
-    idx.save("testfile.idx", 0x12345678).unwrap();
+    FileIndex::save("testfile.idx", 0x12345678, &idx).unwrap();
 }
