@@ -34,7 +34,7 @@ impl FilePool {
 
         let tx = try!(db.transaction());
         try!(db.execute("INSERT INTO props (key, value) values ('uuid', ?)",
-            &[&Uuid::new_v4().to_hyphenated_string()]));
+            &[&Uuid::new_v4().hyphenated().to_string()]));
         try!(tx.commit());
         Ok(())
     }
