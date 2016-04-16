@@ -4,3 +4,4 @@
 pub use self::index::{FileIndex, RamIndex, PairIndex};
 
 mod index;
+pub mod file;

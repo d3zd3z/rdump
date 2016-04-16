@@ -14,6 +14,7 @@ pub enum Error {
     Uuid(uuid::ParseError),
     InvalidIndex(String),
     PathError(String),
+    CorruptChunk(String),
     Utf8Error(FromUtf8Error),
     NonAsciiKind,
     BadKindLength,
@@ -58,6 +59,7 @@ impl fmt::Display for Error {
             Error::NotAPool => write!(f, "Not a storage pool"),
             Error::InvalidIndex(ref msg) => write!(f, "Invalid index file: {:?}", msg),
             Error::PathError(ref msg) => write!(f, "Path error: {:?}", msg),
+            Error::CorruptChunk(ref msg) => write!(f, "Corrupt chunk: {:?}", msg),
         }
     }
 }
@@ -75,6 +77,7 @@ impl error::Error for Error {
             Error::NotAPool => "Not a storage pool",
             Error::InvalidIndex(_) => "Invalid index file",
             Error::PathError(_) => "Invalid Path name",
+            Error::CorruptChunk(_) => "Corrupt chunk",
         }
     }
 
@@ -86,6 +89,7 @@ impl error::Error for Error {
             Error::NotAPool => None,
             Error::InvalidIndex(_) => None,
             Error::PathError(_) => None,
+            Error::CorruptChunk(_) => None,
             Error::Io(ref err) => err.cause(),
             Error::Sql(ref err) => err.cause(),
             Error::Uuid(_) => None,
