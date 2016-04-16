@@ -407,31 +407,31 @@ fn compute_top<'a>(nodes: &[IterItem<'a>]) -> Vec<u32> {
     top
 }
 
-/// An IndexPair combines a possibly loaded index with a ram index allowing
+/// A PairIndex combines a possibly loaded index with a ram index allowing
 /// for update.  The whole pair can then be written to a new index file,
 /// and loaded later.
-pub struct IndexPair {
+pub struct PairIndex {
     file: FileIndex,
     ram: RamIndex,
 }
 
-impl IndexPair {
-    pub fn load<P: AsRef<Path>>(path: P, size: u32) -> Result<IndexPair> {
-        Ok(IndexPair {
+impl PairIndex {
+    pub fn load<P: AsRef<Path>>(path: P, size: u32) -> Result<PairIndex> {
+        Ok(PairIndex {
             file: try!(FileIndex::load(path, size)),
             ram: RamIndex::new(),
         })
     }
 
-    pub fn empty() -> IndexPair {
-        IndexPair {
+    pub fn empty() -> PairIndex {
+        PairIndex {
             file: FileIndex::empty(),
             ram: RamIndex::new(),
         }
     }
 }
 
-impl Index for IndexPair {
+impl Index for PairIndex {
     fn contains_key(&self, key: &Oid) -> bool {
         self.ram.contains_key(key) ||
             self.file.contains_key(key)
@@ -443,13 +443,13 @@ impl Index for IndexPair {
     }
 }
 
-impl IndexUpdate for IndexPair {
+impl IndexUpdate for PairIndex {
     fn insert(&mut self, key: Oid, offset: u32, kind: Kind) {
         self.ram.insert(key, offset, kind);
     }
 }
 
-impl<'a> IntoIterator for &'a IndexPair {
+impl<'a> IntoIterator for &'a PairIndex {
     type Item = IterItem<'a>;
     type IntoIter = Chain<FIter<'a>, Iter<'a>>;
 
@@ -533,7 +533,7 @@ mod test {
         let tmp = TempDir::new("testindex").unwrap();
 
         let mut track = Tracker::new();
-        let mut r1 = IndexPair::empty();
+        let mut r1 = PairIndex::empty();
 
         static COUNT: u32 = 10000;
 
@@ -546,18 +546,18 @@ mod test {
         let name1 = tmp.path().join("r1.idx");
         FileIndex::save(&name1, COUNT, &r1).unwrap();
 
-        match IndexPair::load(&name1, COUNT-1) {
+        match PairIndex::load(&name1, COUNT-1) {
             Err(Error::InvalidIndex(_)) => (),
             Err(e) => panic!("Unexpected error: {:?}", e),
             Ok(_) => panic!("Shouldn't be able to load index with size incorrect"),
         }
 
-        match IndexPair::load(&tmp.path().join("r1.bad"), COUNT) {
+        match PairIndex::load(&tmp.path().join("r1.bad"), COUNT) {
             Err(_) => (),
             Ok(_) => panic!("Shouldn't be able to load non-existant index"),
         }
 
-        let mut r2 = IndexPair::load(&name1, COUNT).unwrap();
+        let mut r2 = PairIndex::load(&name1, COUNT).unwrap();
         track.check(&r2);
 
         // Add some more.
@@ -569,7 +569,7 @@ mod test {
         let name2 = tmp.path().join("r2.idx");
         FileIndex::save(&name2, 2*COUNT, &r2).unwrap();
 
-        let r3 = IndexPair::load(&name2, 2*COUNT).unwrap();
+        let r3 = PairIndex::load(&name2, 2*COUNT).unwrap();
         track.check(&r3);
 
         // Print out the path, which will prevent it from being removed.
