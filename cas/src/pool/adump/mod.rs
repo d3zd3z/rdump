@@ -536,40 +536,45 @@ mod test {
         let mut track = Tracker::new();
         let mut r1 = IndexPair::empty();
 
-        for ofs in 0 .. 10000 {
+        static COUNT: u32 = 10000;
+
+        for ofs in 0 .. COUNT {
             track.add(&mut r1, ofs);
         }
 
         track.check(&r1);
 
         let name1 = tmp.path().join("r1.idx");
-        IndexFile::save(&name1, 10000, &r1).unwrap();
+        IndexFile::save(&name1, COUNT, &r1).unwrap();
 
-        match IndexPair::load(&name1, 9999) {
+        match IndexPair::load(&name1, COUNT-1) {
             Err(Error::InvalidIndex(_)) => (),
             Err(e) => panic!("Unexpected error: {:?}", e),
             Ok(_) => panic!("Shouldn't be able to load index with size incorrect"),
         }
 
-        match IndexPair::load(&tmp.path().join("r1.bad"), 10000) {
+        match IndexPair::load(&tmp.path().join("r1.bad"), COUNT) {
             Err(_) => (),
             Ok(_) => panic!("Shouldn't be able to load non-existant index"),
         }
 
-        let mut r2 = IndexPair::load(&name1, 10000).unwrap();
+        let mut r2 = IndexPair::load(&name1, COUNT).unwrap();
         track.check(&r2);
 
         // Add some more.
-        for ofs in 10000 .. 20000 {
+        for ofs in COUNT .. 2*COUNT {
             track.add(&mut r2, ofs);
         }
         track.check(&r2);
 
         let name2 = tmp.path().join("r2.idx");
-        IndexFile::save(&name2, 20000, &r2).unwrap();
+        IndexFile::save(&name2, 2*COUNT, &r2).unwrap();
 
-        let r3 = IndexPair::load(&name2, 20000).unwrap();
+        let r3 = IndexPair::load(&name2, 2*COUNT).unwrap();
         track.check(&r3);
+
+        // Print out the path, which will prevent it from being removed.
+        // println!("Path: {:?}", tmp.into_path());
     }
 
     #[test]
