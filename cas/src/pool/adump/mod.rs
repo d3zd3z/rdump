@@ -22,47 +22,6 @@ pub trait IndexUpdate {
     fn insert(&mut self, key: Oid, offset: u32, kind: Kind);
 }
 
-// The RAM Index
-#[cfg(all(feature = "nightly", test))]
-mod bench {
-    use crypto::aessafe::AesSafe128Encryptor;
-    use crypto::symmetriccipher::BlockEncryptor;
-    use rand::chacha::ChaChaRng;
-    use rand::Rng;
-    use test;
-    use Kind;
-    use Oid;
-    use std::mem;
-
-    #[bench]
-    fn bench_oid(b: &mut test::Bencher) {
-        b.iter(|| {
-            Oid::from_data(Kind::new("blob").unwrap(), b"12345");
-        })
-    }
-
-    #[bench]
-    fn bench_aes(b: &mut test::Bencher) {
-        let enc = AesSafe128Encryptor::new(b"1234567890123456");
-        b.iter(|| {
-            let input = vec![0u8; 16];
-            let mut output = vec![0u8; 16];
-            enc.encrypt_block(&input, &mut output);
-        })
-    }
-
-    #[bench]
-    fn bench_chacha(b: &mut test::Bencher) {
-        let mut rng = ChaChaRng::new_unseeded();
-        b.iter(|| {
-            let mut oid: Oid = unsafe { mem::uninitialized() };
-            let mut raw = oid.as_mut_bytes();
-            // rng.set_counter(0, 5*20);
-            rng.fill_bytes(raw);
-        })
-    }
-}
-
 // In memory index.
 pub struct RamIndex(pub BTreeMap<Oid, IndexInfo>);
 

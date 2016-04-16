@@ -44,6 +44,3 @@ opt-level = 2
 
 [profile.test]
 opt-level = 2
-
-[features]
-nightly = []
