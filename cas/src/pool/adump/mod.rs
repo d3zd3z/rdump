@@ -1,19 +1,29 @@
 // Adump file format.
 
+use Chunk;
 use Error;
+use Oid;
 use Result;
 use std::fs::{self, File};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
+
+use super::{ChunkSink, ChunkSource};
 
 // TODO: These probably don't need to be exported.
 pub use self::index::{FileIndex, RamIndex, PairIndex};
 
 mod index;
 pub mod file;
+mod pfile;
 
-pub struct AdumpPool;
+pub struct AdumpPool {
+    base: PathBuf,
+    uuid: Uuid,
+    newfile: bool,
+    limit: u32,
+}
 
 impl AdumpPool {
     pub fn new_builder<P: AsRef<Path>>(dir: P) -> PoolBuilder<P> {
@@ -22,6 +32,51 @@ impl AdumpPool {
             newfile: false,
             limit: 640 * 1024 * 1024,
         }
+    }
+
+    pub fn open<P: AsRef<Path>>(dir: P) -> Result<AdumpPool> {
+        let base = dir.as_ref().to_owned();
+        let meta = base.join("metadata");
+
+        let props = {
+            let fd = try!(File::open(&meta.join("props.txt")));
+            try!(pfile::parse(fd))
+        };
+        let uuid = try!(props.get("uuid").ok_or_else(|| Error::PropertyError("No uuid property".to_owned())));
+        let uuid = try!(Uuid::parse_str(&uuid));
+        let newfile = try!(props.get("newfile").ok_or_else(|| Error::PropertyError("No newfile property".to_owned())));
+        let newfile = try!(newfile.parse::<bool>());
+        let limit = try!(props.get("limit").ok_or_else(|| Error::PropertyError("No limit property".to_owned())));
+        let limit = try!(limit.parse::<u32>());
+
+        Ok(AdumpPool {
+            base: base,
+            uuid: uuid,
+            newfile: newfile,
+            limit: limit,
+        })
+    }
+}
+
+impl ChunkSource for AdumpPool {
+    fn find(&self, key: &Oid) -> Result<Chunk> {
+        unimplemented!();
+    }
+
+    fn contains_key(&self, key: &Oid) -> Result<bool> {
+        unimplemented!();
+    }
+
+    fn uuid<'a>(&'a self) -> &'a Uuid {
+        &self.uuid
+    }
+
+    fn backups(&self) -> Result<Vec<Oid>> {
+        unimplemented!();
+    }
+
+    fn get_writer<'a>(&'a self) -> Result<Box<ChunkSink + 'a>> {
+        unimplemented!();
     }
 }
 
@@ -99,10 +154,13 @@ fn ensure_dir(base: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod test {
+    use tempdir::TempDir;
     use super::*;
 
     #[test]
     fn test_pool() {
-        AdumpPool::new_builder("blort").create().unwrap();
+        let tmp = TempDir::new("adump").unwrap();
+        let name = tmp.path().join("blort");
+        AdumpPool::new_builder(&name).create().unwrap();
     }
 }
