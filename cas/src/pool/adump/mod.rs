@@ -5,15 +5,18 @@ use Error;
 use Kind;
 use Oid;
 use Result;
+use std::cell::RefCell;
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{BufRead, BufReader, Seek, SeekFrom, Read, Write};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
+use self::chunkio::ChunkRead;
 use super::{ChunkSink, ChunkSource};
 
 // TODO: These probably don't need to be exported.
-pub use self::index::{FileIndex, RamIndex, PairIndex};
+pub
+use self::index::{Index, FileIndex, RamIndex, PairIndex};
 
 mod index;
 pub mod chunkio;
@@ -66,11 +69,22 @@ impl AdumpPool {
 
 impl ChunkSource for AdumpPool {
     fn find(&self, key: &Oid) -> Result<Chunk> {
-        unimplemented!();
+        for cf in &self.cfiles {
+            match try!(cf.find(key)) {
+                None => (),
+                Some(chunk) => return Ok(chunk),
+            }
+        }
+        Err(Error::MissingChunk)
     }
 
     fn contains_key(&self, key: &Oid) -> Result<bool> {
-        unimplemented!();
+        for cf in &self.cfiles {
+            if cf.contains_key(key) {
+                return Ok(true)
+            }
+        }
+        Ok(false)
     }
 
     fn uuid<'a>(&'a self) -> &'a Uuid {
@@ -196,6 +210,12 @@ fn scan_backups(base: &Path) -> Result<Vec<ChunkFile>> {
 struct ChunkFile {
     name: PathBuf,
     index: PairIndex,
+    state: RefCell<State>,
+}
+
+enum State {
+    Closed,
+    Reading(BufReader<File>),
 }
 
 impl ChunkFile {
@@ -209,7 +229,6 @@ impl ChunkFile {
             return Err(Error::CorruptPool(format!("file {:?} is larger than 2^31", p)));
         }
         let index_name = p.with_extension("idx");
-        println!("Load index: {:?}", index_name);
         let index = match PairIndex::load(&index_name, size as u32) {
             Ok(x) => x,
             Err(e @ Error::InvalidIndex(_)) => return Err(e),
@@ -218,7 +237,46 @@ impl ChunkFile {
         Ok(ChunkFile {
             name: p,
             index: index,
+            state: RefCell::new(State::Closed),
         })
+    }
+
+    fn contains_key(&self, key: &Oid) -> bool {
+        self.index.contains_key(key)
+    }
+
+    // Read a chunk from this file, if that is possible.
+    fn find(&self, key: &Oid) -> Result<Option<Chunk>> {
+        match self.index.get(key) {
+            None => Ok(None),
+            Some(info) => {
+                self.with_reader(|fd| {
+                    try!(fd.seek(SeekFrom::Start(info.offset as u64)));
+                    let ch = try!(fd.read_chunk());
+                    Ok(Some(ch))
+                })
+            }
+        }
+    }
+
+    // Use a reader, opening if necessary.
+    fn with_reader<F, Z>(&self, f: F) -> Result<Z> where F: FnOnce(&mut BufReader<File>) -> Result<Z> {
+        // Open the descriptor if necessary.
+        if match *self.state.borrow() {
+            State::Reading(_) => false,
+            _ => true,
+        } {
+            let fd = try!(File::open(&self.name));
+            *self.state.borrow_mut() = State::Reading(BufReader::new(fd));
+        }
+
+        let mut field = self.state.borrow_mut();
+        let mut fd = match *field {
+            State::Reading(ref mut fd) => fd,
+            _ => panic!("Unexpected state"),
+        };
+
+        f(fd)
     }
 }
 
