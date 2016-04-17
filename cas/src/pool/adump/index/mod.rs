@@ -20,8 +20,8 @@ pub trait Index {
 
 #[derive(Debug, Clone)]
 pub struct IndexInfo {
-    offset: u32,
-    kind: Kind,
+    pub offset: u32,
+    pub kind: Kind,
 }
 
 pub trait IndexUpdate {
