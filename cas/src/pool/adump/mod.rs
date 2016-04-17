@@ -2,6 +2,7 @@
 
 use Chunk;
 use Error;
+use Kind;
 use Oid;
 use Result;
 use std::fs::{self, File};
@@ -15,7 +16,7 @@ use super::{ChunkSink, ChunkSource};
 pub use self::index::{FileIndex, RamIndex, PairIndex};
 
 mod index;
-pub mod file;
+pub mod chunkio;
 mod pfile;
 
 pub struct AdumpPool {
@@ -23,6 +24,8 @@ pub struct AdumpPool {
     uuid: Uuid,
     newfile: bool,
     limit: u32,
+
+    cfiles: Vec<ChunkFile>,
 }
 
 impl AdumpPool {
@@ -49,11 +52,14 @@ impl AdumpPool {
         let limit = try!(props.get("limit").ok_or_else(|| Error::PropertyError("No limit property".to_owned())));
         let limit = try!(limit.parse::<u32>());
 
+        let cfiles = try!(scan_backups(&base));
+
         Ok(AdumpPool {
             base: base,
             uuid: uuid,
             newfile: newfile,
             limit: limit,
+            cfiles: cfiles,
         })
     }
 }
@@ -72,7 +78,20 @@ impl ChunkSource for AdumpPool {
     }
 
     fn backups(&self) -> Result<Vec<Oid>> {
-        unimplemented!();
+        let back = Kind::new("back").unwrap();
+        let mut result = vec![];
+
+        // Scan actual files for these.
+        for cfile in &self.cfiles {
+            for ent in &cfile.index {
+                if ent.kind == back {
+                    println!("ent: {:?}", ent);
+                    result.push(ent.oid.clone());
+                }
+            }
+        }
+
+        Ok(result)
     }
 
     fn get_writer<'a>(&'a self) -> Result<Box<ChunkSink + 'a>> {
@@ -150,6 +169,57 @@ fn ensure_dir(base: &Path) -> Result<()> {
         try!(fs::create_dir(base));
     }
     Ok(())
+}
+
+// Scan the directory for backup files.
+fn scan_backups(base: &Path) -> Result<Vec<ChunkFile>> {
+    let mut bpaths = vec![];
+
+    // We'll consider every file in the pool directory that ends in '.data'
+    // to be a pool file.
+    for ent in try!(base.read_dir()) {
+        let ent = try!(ent);
+        let name = ent.path();
+        if match name.extension().and_then(|x| x.to_str()) {
+            Some(ext) if ext == "data" => true,
+            _ => false
+        } {
+            bpaths.push(name);
+        }
+    }
+    bpaths.sort();
+
+    // Open all of the files.
+    bpaths.into_iter().map(|x| ChunkFile::open(x)).collect()
+}
+
+struct ChunkFile {
+    name: PathBuf,
+    index: PairIndex,
+}
+
+impl ChunkFile {
+    fn open(p: PathBuf) -> Result<ChunkFile> {
+        let m = try!(p.metadata());
+        if !m.is_file() {
+            return Err(Error::CorruptPool(format!("file {:?} is not a regular file", p)));
+        }
+        let size = m.len();
+        if size > i32::max_value() as u64 {
+            return Err(Error::CorruptPool(format!("file {:?} is larger than 2^31", p)));
+        }
+        let index_name = p.with_extension("idx");
+        println!("Load index: {:?}", index_name);
+        let index = match PairIndex::load(&index_name, size as u32) {
+            Ok(x) => x,
+            Err(e @ Error::InvalidIndex(_)) => return Err(e),
+            Err(e) => return Err(Error::InvalidIndex(format!("Index error in {:?}, {:?}", p, e))),
+        };
+        Ok(ChunkFile {
+            name: p,
+            index: index,
+        })
+    }
 }
 
 #[cfg(test)]

@@ -30,10 +30,11 @@ pub trait IndexUpdate {
 }
 
 /// All of the indices can be iterated, producing an IterItem.
+#[derive(Debug)]
 pub struct IterItem<'a> {
-    oid: &'a Oid,
-    kind: Kind,
-    offset: u32,
+    pub oid: &'a Oid,
+    pub kind: Kind,
+    pub offset: u32,
 }
 
 mod ram_index;

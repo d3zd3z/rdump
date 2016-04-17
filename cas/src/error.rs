@@ -17,6 +17,7 @@ pub enum Error {
     InvalidIndex(String),
     PathError(String),
     CorruptChunk(String),
+    CorruptPool(String),
     PropertyError(String),
     Utf8Error(FromUtf8Error),
     ParseBoolError(ParseBoolError),
@@ -79,6 +80,7 @@ impl fmt::Display for Error {
             Error::InvalidIndex(ref msg) => write!(f, "Invalid index file: {:?}", msg),
             Error::PathError(ref msg) => write!(f, "Path error: {:?}", msg),
             Error::CorruptChunk(ref msg) => write!(f, "Corrupt chunk: {:?}", msg),
+            Error::CorruptPool(ref msg) => write!(f, "Corrupt pool: {:?}", msg),
             Error::PropertyError(ref msg) => write!(f, "Property parse error: {:?}", msg),
         }
     }
@@ -100,6 +102,7 @@ impl error::Error for Error {
             Error::InvalidIndex(_) => "Invalid index file",
             Error::PathError(_) => "Invalid Path name",
             Error::CorruptChunk(_) => "Corrupt chunk",
+            Error::CorruptPool(_) => "Corrupt pool",
             Error::PropertyError(_) => "Property parse error",
         }
     }
@@ -113,6 +116,7 @@ impl error::Error for Error {
             Error::InvalidIndex(_) => None,
             Error::PathError(_) => None,
             Error::CorruptChunk(_) => None,
+            Error::CorruptPool(_) => None,
             Error::PropertyError(_) => None,
             Error::Io(ref err) => err.cause(),
             Error::Sql(ref err) => err.cause(),
