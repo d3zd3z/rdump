@@ -5,16 +5,24 @@
 //! Every object in the pool is identified by an object-id (OID) which is
 //! the SHA-1 hash of the `Kind` followed by the payload itself.
 
+use std::fmt::{self, Formatter, Debug};
 use std::mem;
 use std::ops::Index;
+use std::result;
 // use std::slice::bytes;
 use kind::Kind;
 
 use rustc_serialize::hex::{ToHex, FromHex};
 
 // TODO: Derive our own Debug and Hash.
-#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Clone, Hash)]
+#[derive(PartialEq, PartialOrd, Eq, Ord, Clone, Hash)]
 pub struct Oid(pub [u8; 20]);
+
+impl Debug for Oid {
+    fn fmt(&self, fmt: &mut Formatter) -> result::Result<(), fmt::Error> {
+        write!(fmt, "Oid({:?})", self.to_hex())
+    }
+}
 
 // Simple binding to the crypto library from OpenSSL.
 mod openssl {
