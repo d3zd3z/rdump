@@ -261,16 +261,17 @@ impl ChunkFile {
 
     // Use a reader, opening if necessary.
     fn with_reader<F, Z>(&self, f: F) -> Result<Z> where F: FnOnce(&mut BufReader<File>) -> Result<Z> {
+        let mut field = self.state.borrow_mut();
+
         // Open the descriptor if necessary.
-        if match *self.state.borrow() {
-            State::Reading(_) => false,
-            _ => true,
-        } {
-            let fd = try!(File::open(&self.name));
-            *self.state.borrow_mut() = State::Reading(BufReader::new(fd));
+        match *field {
+            State::Reading(_) => (),
+            State::Closed => {
+                let fd = try!(File::open(&self.name));
+                *field = State::Reading(BufReader::new(fd));
+            }
         }
 
-        let mut field = self.state.borrow_mut();
         let mut fd = match *field {
             State::Reading(ref mut fd) => fd,
             _ => panic!("Unexpected state"),
