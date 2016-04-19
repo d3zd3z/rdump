@@ -56,12 +56,12 @@ impl ChunkSource for RamPool {
         unimplemented!();
     }
 
-    fn get_writer<'a>(&'a self) -> Result<Box<ChunkSink + 'a>> {
+    fn get_writer<'a>(&'a mut self) -> Result<Box<ChunkSink + 'a>> {
         Ok(Box::new(self))
     }
 }
 
-impl<'a> ChunkSink for &'a RamPool {
+impl<'a> ChunkSink for &'a mut RamPool {
     fn add(&self, chunk: &Chunk) -> Result<()> {
         let id = chunk.oid().clone();
         let payload = Stashed {
