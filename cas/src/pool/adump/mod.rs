@@ -7,7 +7,7 @@ use Oid;
 use Result;
 use std::cell::RefCell;
 use std::fs::{self, File};
-use std::io::{BufRead, BufReader, Seek, SeekFrom, Read, Write};
+use std::io::{BufReader, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
@@ -23,10 +23,10 @@ pub mod chunkio;
 mod pfile;
 
 pub struct AdumpPool {
-    base: PathBuf,
+    _base: PathBuf,
     uuid: Uuid,
-    newfile: bool,
-    limit: u32,
+    _newfile: bool,
+    _limit: u32,
 
     cfiles: Vec<ChunkFile>,
 }
@@ -58,10 +58,10 @@ impl AdumpPool {
         let cfiles = try!(scan_backups(&base));
 
         Ok(AdumpPool {
-            base: base,
+            _base: base,
             uuid: uuid,
-            newfile: newfile,
-            limit: limit,
+            _newfile: newfile,
+            _limit: limit,
             cfiles: cfiles,
         })
     }
