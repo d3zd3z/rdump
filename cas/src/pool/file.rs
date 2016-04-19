@@ -148,7 +148,7 @@ impl ChunkSource for FilePool {
         Ok(result)
     }
 
-    fn get_writer<'a>(&'a self) -> Result<Box<ChunkSink + 'a>> {
+    fn get_writer<'a>(&'a mut self) -> Result<Box<ChunkSink + 'a>> {
         let tx = try!(self.db.transaction());
         Ok(Box::new(FilePoolWriter {
             parent: self,
@@ -228,7 +228,7 @@ impl<'a> ChunkSource for FilePoolWriter<'a> {
         self.parent.backups()
     }
 
-    fn get_writer<'b>(&'b self) -> Result<Box<ChunkSink + 'b>> {
+    fn get_writer<'b>(&'b mut self) -> Result<Box<ChunkSink + 'b>> {
         panic!("Nested writers not supported");
     }
 }
@@ -252,7 +252,7 @@ mod test {
         // let path = Path::new("blort");
 
         FilePool::create(&path).unwrap();
-        let pool = FilePool::open(&path).unwrap();
+        let mut pool = FilePool::open(&path).unwrap();
         let mut all = HashMap::new();
 
         {
@@ -302,7 +302,7 @@ mod test {
         let path = tmp.path().join("pool");
 
         FilePool::create(&path).unwrap();
-        let pool = FilePool::open(&path).unwrap();
+        let mut pool = FilePool::open(&path).unwrap();
         let mut oids = HashSet::new();
 
         {
