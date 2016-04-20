@@ -3,7 +3,7 @@
 extern crate cas;
 
 use cas::Kind;
-use cas::pool::{ChunkSink, ChunkSource};
+use cas::pool::ChunkSource;
 use std::error;
 use std::fs::{self, File};
 use std::io::Read;
@@ -14,8 +14,8 @@ pub type Result<T> = result::Result<T, Box<error::Error + Send + Sync>>;
 
 fn main() {
     cas::pool::FilePool::create(&Path::new("/wd/test-pool/foo")).unwrap();
-    let pool = cas::pool::open(&Path::new("/wd/test-pool/foo")).unwrap();
-    let mut walk = Walker::new(&*pool);
+    let mut pool = cas::pool::open(&Path::new("/wd/test-pool/foo")).unwrap();
+    let mut walk = Walker::new(&mut *pool);
     // walk.walk(&Path::new("/mnt/linaro/optee-qemu/.zfs/snapshot/tip-2016-02-10/linux")).unwrap();
     walk.walk(&Path::new("/mnt/linaro/optee-qemu/linux")).unwrap();
     // walk.walk(&Path::new("/mnt/linaro/.zfs/snapshot/tip-2016-02-10")).unwrap();
@@ -23,7 +23,7 @@ fn main() {
 }
 
 struct Walker<'a> {
-    pool: &'a ChunkSource,
+    pool: &'a mut ChunkSource,
 
     info: WalkInfo,
 }
@@ -40,7 +40,7 @@ struct WalkInfo {
 
 impl<'a> Walker<'a> {
 
-    fn new(pool: &ChunkSource) -> Walker {
+    fn new(pool: &mut ChunkSource) -> Walker {
         Walker {
             pool: pool,
             info: WalkInfo {
@@ -58,13 +58,13 @@ impl<'a> Walker<'a> {
     // don't keep any of this data, and the whole point here is to measure performance of the
     // pools.
     fn walk(&mut self, name: &Path) -> Result<()> {
-        let wr = try!(self.pool.get_writer());
-        try!(self.iwalk(&*wr, name));
-        try!(wr.flush());
+        self.pool.begin_writing()?;
+        try!(self.iwalk(name));
+        self.pool.flush()?;
         Ok(())
     }
 
-    fn iwalk(&mut self, writer: &ChunkSink, name: &Path) -> Result<()> {
+    fn iwalk(&mut self, name: &Path) -> Result<()> {
         // println!("d {:?}", name);
 
         let mut dirs = vec![];
@@ -86,12 +86,12 @@ impl<'a> Walker<'a> {
 
         // Walk deeply first.
         for dir in &dirs {
-            try!(self.iwalk(writer, dir));
+            try!(self.iwalk(dir));
         }
 
         // The process  the files at this level.
         for file in &files {
-            try!(self.encode_file(writer, file));
+            try!(self.encode_file(file));
         }
 
         self.info.dirs += 1;
@@ -99,7 +99,7 @@ impl<'a> Walker<'a> {
         Ok(())
     }
 
-    fn encode_file(&mut self, writer: &ChunkSink, name: &Path) -> Result<()> {
+    fn encode_file(&mut self, name: &Path) -> Result<()> {
         // print!("- {:?}", name);
         let mut f = try!(File::open(name));
 
@@ -128,7 +128,7 @@ impl<'a> Walker<'a> {
                 self.info.dup_chunks += 1;
                 self.info.dup_bytes += count as u64;
             } else {
-                try!(writer.add(&ch));
+                try!(self.pool.add(&ch));
                 self.info.chunks += 1;
                 self.info.bytes += count as u64;
             }

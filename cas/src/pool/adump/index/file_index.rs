@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use std::fs::{self, File};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
-use super::{Index, IndexUpdate, IndexInfo, IterItem};
+use super::{Index, /* IndexUpdate, */ IndexInfo, IterItem};
 
 // Represents the in-memory format for a single index file.  There is a
 // tradeoff here between load time (reading and decoding the file, or using

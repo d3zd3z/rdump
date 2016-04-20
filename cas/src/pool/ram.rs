@@ -9,7 +9,7 @@ use Kind;
 use Oid;
 use Result;
 use Error;
-use pool::{ChunkSink, ChunkSource};
+use pool::ChunkSource;
 
 // TODO: Should Chunks implement clone, so we could just store them
 // directly?
@@ -56,13 +56,11 @@ impl ChunkSource for RamPool {
         unimplemented!();
     }
 
-    fn get_writer<'a>(&'a mut self) -> Result<Box<ChunkSink + 'a>> {
-        Ok(Box::new(self))
+    fn begin_writing(&mut self) -> Result<()> {
+        Ok(())
     }
-}
 
-impl<'a> ChunkSink for &'a mut RamPool {
-    fn add(&self, chunk: &Chunk) -> Result<()> {
+    fn add(&mut self, chunk: &Chunk) -> Result<()> {
         let id = chunk.oid().clone();
         let payload = Stashed {
             kind: chunk.kind(),
@@ -73,7 +71,7 @@ impl<'a> ChunkSink for &'a mut RamPool {
         Ok(())
     }
 
-    fn flush(self: Box<Self>) -> Result<()> {
+    fn flush(&mut self) -> Result<()> {
         Ok(())
     }
 }

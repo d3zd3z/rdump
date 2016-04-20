@@ -15,6 +15,7 @@ pub use self::ram::RamPool;
 mod sql;
 mod file;
 mod ram;
+mod wrapper;
 pub mod adump;
 
 /// A source of chunks.  This is similar to a `Map`, except that the values
@@ -36,18 +37,14 @@ pub trait ChunkSource {
     /// Return the set of backups stored in this pool.
     fn backups(&self) -> Result<Vec<Oid>>;
 
-    /// Get a writer for this source (if possible).
-    fn get_writer<'a>(&'a mut self) -> Result<Box<ChunkSink + 'a>>;
-}
+    /// Begin allowing writing on this particular ChunkSource.
+    fn begin_writing(&mut self) -> Result<()>;
 
-// TODO: How can we specify that ChunkSink should always be deref to a
-// source?
-/// A sink for chunks.
-pub trait ChunkSink {
-    fn add(&self, chunk: &Chunk) -> Result<()>;
+    /// Add a new chunk to this pool.
+    fn add(&mut self, chunk: &Chunk) -> Result<()>;
 
-    /// Flush, and consume this sink.
-    fn flush(self: Box<Self>) -> Result<()>;
+    /// Consume the writer, closing the transaction.
+    fn flush(&mut self) -> Result<()>;
 }
 
 /// Attempt to open a pool for reading, auto-determining the type.

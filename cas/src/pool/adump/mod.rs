@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 use self::chunkio::ChunkRead;
-use super::{ChunkSink, ChunkSource};
+use super::ChunkSource;
 
 // TODO: These probably don't need to be exported.
 pub
@@ -108,7 +108,15 @@ impl ChunkSource for AdumpPool {
         Ok(result)
     }
 
-    fn get_writer<'a>(&'a mut self) -> Result<Box<ChunkSink + 'a>> {
+    fn begin_writing(&mut self) -> Result<()> {
+        unimplemented!();
+    }
+
+    fn add(&mut self, _chunk: &Chunk) -> Result<()> {
+        unimplemented!();
+    }
+
+    fn flush(&mut self) -> Result<()> {
         unimplemented!();
     }
 }
