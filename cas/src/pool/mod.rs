@@ -6,6 +6,7 @@ use oid::Oid;
 use chunk::Chunk;
 use uuid::Uuid;
 
+use std::any::Any;
 use std::path::Path;
 use std::fs;
 
@@ -37,18 +38,19 @@ pub trait ChunkSource {
     fn backups(&self) -> Result<Vec<Oid>>;
 
     /// Get a writer for this source (if possible).
-    fn get_writer<'a>(&'a mut self) -> Result<Box<ChunkSink + 'a>>;
+    fn get_writer<'a>(&'a self) -> Result<Writer>;
+
+    /// Add a new chunk to this pool.
+    fn add(&self, chunk: &Chunk, writer: &mut Writer) -> Result<()>;
+
+    /// Consume the writer, closing the transaction.
+    fn flush(&self, Writer) -> Result<()>;
 }
 
-// TODO: How can we specify that ChunkSink should always be deref to a
-// source?
-/// A sink for chunks.
-pub trait ChunkSink {
-    fn add(&self, chunk: &Chunk) -> Result<()>;
-
-    /// Flush, and consume this sink.
-    fn flush(self: Box<Self>) -> Result<()>;
-}
+// To make ChunkSource object safe, the writer has to belong to a trait.
+// We'll encode this as an Any with a certain trait bound.  This means the
+// usage will only be runtime checked, however.
+struct Writer(Box<Any>);
 
 /// Attempt to open a pool for reading, auto-determining the type.
 pub fn open<P: AsRef<Path>>(path: P) -> Result<Box<ChunkSource>> {
