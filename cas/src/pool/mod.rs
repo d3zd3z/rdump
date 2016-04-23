@@ -37,7 +37,7 @@ pub trait ChunkSource {
     fn backups(&self) -> Result<Vec<Oid>>;
 
     /// Get a writer for this source (if possible).
-    fn get_writer<'a>(&'a mut self) -> Result<Box<ChunkSink + 'a>>;
+    fn get_writer<'a>(&'a self) -> Result<Box<ChunkSink + 'a>>;
 }
 
 // TODO: How can we specify that ChunkSink should always be deref to a
