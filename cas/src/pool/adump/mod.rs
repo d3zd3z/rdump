@@ -111,6 +111,10 @@ impl ChunkSource for AdumpPool {
     fn get_writer<'a>(&'a self) -> Result<Box<ChunkSink + 'a>> {
         unimplemented!();
     }
+
+    fn add(&self, _chunk: &Chunk, _writer: &ChunkSink) -> Result<()> {
+        unimplemented!();
+    }
 }
 
 /// A builder to set parameters before creating a pool.

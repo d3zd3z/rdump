@@ -59,10 +59,8 @@ impl ChunkSource for RamPool {
     fn get_writer<'a>(&'a self) -> Result<Box<ChunkSink + 'a>> {
         Ok(Box::new(self))
     }
-}
 
-impl<'a> ChunkSink for &'a RamPool {
-    fn add(&self, chunk: &Chunk) -> Result<()> {
+    fn add(&self, chunk: &Chunk, _writer: &ChunkSink) -> Result<()> {
         let id = chunk.oid().clone();
         let payload = Stashed {
             kind: chunk.kind(),
@@ -72,7 +70,9 @@ impl<'a> ChunkSink for &'a RamPool {
             .or_insert(payload);
         Ok(())
     }
+}
 
+impl<'a> ChunkSink for &'a RamPool {
     fn flush(self: Box<Self>) -> Result<()> {
         Ok(())
     }

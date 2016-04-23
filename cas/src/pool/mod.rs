@@ -38,14 +38,15 @@ pub trait ChunkSource {
 
     /// Get a writer for this source (if possible).
     fn get_writer<'a>(&'a self) -> Result<Box<ChunkSink + 'a>>;
+
+    /// Add a chunk to the pool.
+    fn add(&self, chunk: &Chunk, writer: &ChunkSink) -> Result<()>;
 }
 
 // TODO: How can we specify that ChunkSink should always be deref to a
 // source?
 /// A sink for chunks.
 pub trait ChunkSink {
-    fn add(&self, chunk: &Chunk) -> Result<()>;
-
     /// Flush, and consume this sink.
     fn flush(self: Box<Self>) -> Result<()>;
 }

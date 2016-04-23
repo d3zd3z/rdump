@@ -32,6 +32,7 @@ pub struct Write<'a> {
     level: usize,
 
     // The sink for the data.
+    pool: &'a ChunkSource,
     sink: &'a ChunkSink,
 }
 

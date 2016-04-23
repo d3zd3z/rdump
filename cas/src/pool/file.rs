@@ -155,22 +155,17 @@ impl ChunkSource for FilePool {
             tx: tx,
         }))
     }
-}
 
-pub struct FilePoolWriter<'a> {
-    parent: &'a FilePool,
-    tx: SqliteTransaction<'a>,
-}
+    fn add(&self, chunk: &Chunk, _writer: &ChunkSink) -> Result<()> {
+        // TODO: Verify this is the right writer.
 
-impl<'a> ChunkSink for FilePoolWriter<'a> {
-    fn add(&self, chunk: &Chunk) -> Result<()> {
         let payload = match chunk.zdata() {
             None => chunk.data(),
             Some(zdata) => zdata,
         };
 
         if payload.len() < 100000 {
-            try!(self.parent.db.execute(
+            try!(self.db.execute(
                     "INSERT INTO blobs (oid, kind, size, zsize, data)
                     VALUES (?, ?, ?, ?, ?)",
                     &[&&chunk.oid().0[..],
@@ -179,7 +174,7 @@ impl<'a> ChunkSink for FilePoolWriter<'a> {
                     &(payload.len() as i32),
                     &&payload[..]]));
         } else {
-            let (dir, name) = self.parent.get_paths(chunk.oid());
+            let (dir, name) = self.get_paths(chunk.oid());
 
             // Just try writing the fd first.
             let mut fd = match fs::File::create(&name) {
@@ -193,7 +188,7 @@ impl<'a> ChunkSink for FilePoolWriter<'a> {
 
             try!(fd.write_all(&payload[..]));
 
-            try!(self.parent.db.execute(
+            try!(self.db.execute(
                     "INSERT INTO blobs (oid, kind, size, zsize)
                      VALUES (?, ?, ?, ?)",
                     &[&&chunk.oid().0[..],
@@ -205,31 +200,17 @@ impl<'a> ChunkSink for FilePoolWriter<'a> {
         Ok(())
     }
 
+}
+
+pub struct FilePoolWriter<'a> {
+    parent: &'a FilePool,
+    tx: SqliteTransaction<'a>,
+}
+
+impl<'a> ChunkSink for FilePoolWriter<'a> {
     fn flush(self: Box<Self>) -> Result<()> {
         try!(self.tx.commit());
         Ok(())
-    }
-}
-
-impl<'a> ChunkSource for FilePoolWriter<'a> {
-    fn find(&self, key: &Oid) -> Result<Chunk> {
-        self.parent.find(key)
-    }
-
-    fn contains_key(&self, key: &Oid) -> Result<bool> {
-        self.parent.contains_key(key)
-    }
-
-    fn uuid<'b>(&'b self) -> &'b Uuid {
-        self.parent.uuid()
-    }
-
-    fn backups(&self) -> Result<Vec<Oid>> {
-        self.parent.backups()
-    }
-
-    fn get_writer<'b>(&'b self) -> Result<Box<ChunkSink + 'b>> {
-        panic!("Nested writers not supported");
     }
 }
 
@@ -260,7 +241,7 @@ mod test {
 
             for i in boundary_sizes() {
                 let ch = make_random_chunk(i, i);
-                pw.add(&ch).unwrap();
+                pool.add(&ch, &*pw).unwrap();
                 let oi = all.insert(ch.oid().clone(), ch);
                 match oi {
                     None => (),
@@ -274,7 +255,7 @@ mod test {
                     continue;
                 }
                 let ch = make_uncompressible_chunk(i, i);
-                pw.add(&ch).unwrap();
+                pool.add(&ch, &*pw).unwrap();
                 let oi = all.insert(ch.oid().clone(), ch);
                 match oi {
                     None => (),
@@ -310,7 +291,7 @@ mod test {
 
             for i in 0 .. 1000 {
                 let ch = make_kinded_random_chunk(Kind::new("back").unwrap(), 64, i);
-                pw.add(&ch).unwrap();
+                pool.add(&ch, &*pw).unwrap();
                 oids.insert(ch.oid().clone());
             }
             pw.flush().unwrap();
