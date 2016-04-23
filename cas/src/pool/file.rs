@@ -13,7 +13,7 @@ use oid::Oid;
 use chunk::Chunk;
 use kind::Kind;
 use pool::sql;
-use pool::ChunkSource;
+use pool::{ChunkSink, ChunkSource};
 use Result;
 use Error;
 
@@ -148,21 +148,29 @@ impl ChunkSource for FilePool {
         Ok(result)
     }
 
-    fn get_writer<'a>(&'a self) -> Result<FilePoolWriter<'a>> {
+    fn get_writer<'a>(&'a mut self) -> Result<Box<ChunkSink + 'a>> {
         let tx = try!(self.db.transaction());
-        Ok(FilePoolWriter {
+        Ok(Box::new(FilePoolWriter {
+            parent: self,
             tx: tx,
-        })
+        }))
     }
+}
 
-    fn add(&self, chunk: &Chunk, _writer: &mut FilePoolWriter) -> Result<()> {
+pub struct FilePoolWriter<'a> {
+    parent: &'a FilePool,
+    tx: SqliteTransaction<'a>,
+}
+
+impl<'a> ChunkSink for FilePoolWriter<'a> {
+    fn add(&self, chunk: &Chunk) -> Result<()> {
         let payload = match chunk.zdata() {
             None => chunk.data(),
             Some(zdata) => zdata,
         };
 
         if payload.len() < 100000 {
-            try!(self.db.execute(
+            try!(self.parent.db.execute(
                     "INSERT INTO blobs (oid, kind, size, zsize, data)
                     VALUES (?, ?, ?, ?, ?)",
                     &[&&chunk.oid().0[..],
@@ -171,7 +179,7 @@ impl ChunkSource for FilePool {
                     &(payload.len() as i32),
                     &&payload[..]]));
         } else {
-            let (dir, name) = self.get_paths(chunk.oid());
+            let (dir, name) = self.parent.get_paths(chunk.oid());
 
             // Just try writing the fd first.
             let mut fd = match fs::File::create(&name) {
@@ -185,7 +193,7 @@ impl ChunkSource for FilePool {
 
             try!(fd.write_all(&payload[..]));
 
-            try!(self.db.execute(
+            try!(self.parent.db.execute(
                     "INSERT INTO blobs (oid, kind, size, zsize)
                      VALUES (?, ?, ?, ?)",
                     &[&&chunk.oid().0[..],
@@ -197,20 +205,38 @@ impl ChunkSource for FilePool {
         Ok(())
     }
 
-    fn flush(&self, writer: FilePoolWriter) -> Result<()> {
-        try!(writer.tx.commit());
+    fn flush(self: Box<Self>) -> Result<()> {
+        try!(self.tx.commit());
         Ok(())
     }
 }
 
-pub struct FilePoolWriter<'a> {
-    tx: SqliteTransaction<'a>,
+impl<'a> ChunkSource for FilePoolWriter<'a> {
+    fn find(&self, key: &Oid) -> Result<Chunk> {
+        self.parent.find(key)
+    }
+
+    fn contains_key(&self, key: &Oid) -> Result<bool> {
+        self.parent.contains_key(key)
+    }
+
+    fn uuid<'b>(&'b self) -> &'b Uuid {
+        self.parent.uuid()
+    }
+
+    fn backups(&self) -> Result<Vec<Oid>> {
+        self.parent.backups()
+    }
+
+    fn get_writer<'b>(&'b mut self) -> Result<Box<ChunkSink + 'b>> {
+        panic!("Nested writers not supported");
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use pool::ChunkSource;
+    use pool::{ChunkSource, ChunkSink};
     use kind::Kind;
     // use std::path::Path;
     use std::collections::HashMap;
