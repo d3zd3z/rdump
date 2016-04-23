@@ -57,7 +57,7 @@ impl ChunkSource for RamPool {
     }
 
     fn get_writer<'a>(&'a self) -> Result<Box<ChunkSink + 'a>> {
-        Ok(Box::new(self))
+        Ok(Box::new(RamWriter(self)))
     }
 
     fn add(&self, chunk: &Chunk, _writer: &ChunkSink) -> Result<()> {
@@ -72,8 +72,14 @@ impl ChunkSource for RamPool {
     }
 }
 
-impl<'a> ChunkSink for &'a RamPool {
+struct RamWriter<'a>(&'a RamPool);
+
+impl<'a> ChunkSink for RamWriter<'a> {
     fn flush(self: Box<Self>) -> Result<()> {
         Ok(())
+    }
+
+    fn inner(&self) -> &ChunkSource {
+        self.0
     }
 }

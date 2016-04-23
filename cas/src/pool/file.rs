@@ -212,6 +212,10 @@ impl<'a> ChunkSink for FilePoolWriter<'a> {
         try!(self.tx.commit());
         Ok(())
     }
+
+    fn inner(&self) -> &ChunkSource {
+        self.parent
+    }
 }
 
 #[cfg(test)]

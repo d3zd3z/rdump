@@ -19,7 +19,7 @@ extern crate rand;
 fn indirection() {
     let limit = 1 * 1024 * 1024 + 136;
 
-    let mut pool = RamPool::new();
+    let pool = RamPool::new();
     let top;
     {
         let pw = pool.get_writer().unwrap();

@@ -39,7 +39,7 @@ impl<'a> DataWrite<'a> {
             }
 
             let ch = Chunk::new_plain(Kind::new("blob").unwrap(), buf);
-            try!(self.sink.add(&ch));
+            try!(self.sink.inner().add(&ch, self.sink));
             try!(ind.add(ch.oid()));
             // println!("write {} bytes", ch.data_len());
         }

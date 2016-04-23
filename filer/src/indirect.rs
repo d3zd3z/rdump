@@ -32,7 +32,6 @@ pub struct Write<'a> {
     level: usize,
 
     // The sink for the data.
-    pool: &'a ChunkSource,
     sink: &'a ChunkSink,
 }
 
@@ -110,7 +109,7 @@ impl<'a> Write<'a> {
             let kind = Kind::new(&format!("{}{}", self.prefix, self.level - blevel - 1)).unwrap();
             // let kind = Kind::new(&format!("{}0", self.prefix)).unwrap();
             let ch = Chunk::new_plain(kind, buf);
-            try!(self.sink.add(&ch));
+            try!(self.sink.inner().add(&ch, self.sink));
 
             // TODO: Implement a move out of the oid?
             trace!("collapsed: {}", ch.oid().to_hex());
@@ -124,7 +123,7 @@ impl<'a> Write<'a> {
         if self.buffers.is_empty() {
             // TODO: Make this more general.
             let ch = Chunk::new_plain(Kind::new("NULL").unwrap(), vec![]);
-            try!(self.sink.add(&ch));
+            try!(self.sink.inner().add(&ch, self.sink));
             Ok(ch.oid().clone())
         } else {
             loop {

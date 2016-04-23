@@ -49,6 +49,16 @@ pub trait ChunkSource {
 pub trait ChunkSink {
     /// Flush, and consume this sink.
     fn flush(self: Box<Self>) -> Result<()>;
+
+    /// Get the inner source, so that code doesn't need to pass both of
+    /// these around.
+    fn inner(&self) -> &ChunkSource;
+
+    // TODO: Figure out how to write this.
+    // /// A convenience add method.
+    // fn add(self, chunk: &Chunk) -> Result<()> {
+    //     self.inner().add(chunk, self)
+    // }
 }
 
 /// Attempt to open a pool for reading, auto-determining the type.
