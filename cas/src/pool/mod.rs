@@ -37,8 +37,9 @@ pub trait ChunkSource {
     fn backups(&self) -> Result<Vec<Oid>>;
 }
 
-// Something that chunks can be written to.
-pub trait ChunkSink {
+// Something that chunks can be written to.  All sources are also sinks.
+// This is because trait objects can only be constrained to a single trait.
+pub trait ChunkSink: ChunkSource {
     fn add(&mut self, chunk: &Chunk) -> Result<()>;
 }
 

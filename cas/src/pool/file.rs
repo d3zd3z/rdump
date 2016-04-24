@@ -170,6 +170,24 @@ impl<'a> FilePoolWriter<'a> {
     }
 }
 
+impl<'a> ChunkSource for FilePoolWriter<'a> {
+    fn find(&self, key: &Oid) -> Result<Chunk> {
+        self.parent.find(key)
+    }
+
+    fn contains_key(&self, key: &Oid) -> Result<bool> {
+        self.parent.contains_key(key)
+    }
+
+    fn uuid<'b>(&'b self) -> &'b Uuid {
+        self.parent.uuid()
+    }
+
+    fn backups(&self) -> Result<Vec<Oid>> {
+        self.parent.backups()
+    }
+}
+
 impl<'a> ChunkSink for FilePoolWriter<'a> {
     fn add(&mut self, chunk: &Chunk) -> Result<()> {
         let payload = match chunk.zdata() {
