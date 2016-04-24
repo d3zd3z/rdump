@@ -4,32 +4,36 @@ use Chunk;
 use Error;
 use Kind;
 use Oid;
+use regex::Regex;
 use Result;
 use std::cell::RefCell;
-use std::fs::{self, File};
+use std::fs::{self, File, OpenOptions};
 use std::io::{BufReader, BufWriter, Seek, SeekFrom, Write};
 use std::mem;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
-use self::chunkio::ChunkRead;
+use self::chunkio::{ChunkRead, ChunkWrite};
 use super::{ChunkSink, ChunkSource};
 
-// TODO: These probably don't need to be exported.
-pub
-use self::index::{Index, FileIndex, RamIndex, PairIndex};
+use self::index::{Index, IndexUpdate, PairIndex};
 
 mod index;
 pub mod chunkio;
 mod pfile;
 
 pub struct AdumpPool {
-    _base: PathBuf,
+    base: PathBuf,
     uuid: Uuid,
-    _newfile: bool,
-    _limit: u32,
+    newfile: bool,
+    limit: u32,
+
+    // Have we ever written to this pool in this session?
+    dirty: bool,
 
     cfiles: RefCell<Vec<ChunkFile>>,
+
+    next_file: u32,
 }
 
 impl AdumpPool {
@@ -56,15 +60,30 @@ impl AdumpPool {
         let limit = try!(props.get("limit").ok_or_else(|| Error::PropertyError("No limit property".to_owned())));
         let limit = try!(limit.parse::<u32>());
 
-        let cfiles = try!(scan_backups(&base));
+        let (cfiles, next_file) = try!(scan_backups(&base));
 
         Ok(AdumpPool {
-            _base: base,
+            base: base,
             uuid: uuid,
-            _newfile: newfile,
-            _limit: limit,
+            newfile: newfile,
+            limit: limit,
+            dirty: false,
             cfiles: RefCell::new(cfiles),
+            next_file: next_file,
         })
+    }
+
+    /// Does a write of size 'size' need a new pool file?
+    fn needs_new_file(&self, size: u32) -> bool {
+        // If we're configured in newfile mode, always write the new file.
+        if self.newfile && !self.dirty {
+            return true
+        }
+
+        match self.cfiles.borrow().last() {
+            None => true,
+            Some(ref cf) => cf.size + size > self.limit,
+        }
     }
 }
 
@@ -114,9 +133,28 @@ impl ChunkSource for AdumpPool {
 }
 
 impl ChunkSink for AdumpPool {
-    fn add(&mut self, _chunk: &Chunk) -> Result<()> {
-        unimplemented!();
+    fn add(&mut self, chunk: &Chunk) -> Result<()> {
+        if self.needs_new_file(write_size(chunk)) {
+            let name = self.base.with_file_name(&format!("pool-data-{:04}.data", self.next_file));
+            self.next_file += 1;
+
+            println!("Needs new file: {:?}", name);
+            self.cfiles.borrow_mut().push(try!(ChunkFile::create(name)));
+        }
+
+        let mut cfiles = self.cfiles.borrow_mut();
+        let cfile = cfiles.last_mut().expect("should've created a poolfile");
+
+        cfile.add(chunk)
     }
+}
+
+fn write_size(chunk: &Chunk) -> u32 {
+    let payload = match chunk.zdata() {
+        Some(p) => p,
+        None => chunk.data(),
+    };
+    48 + ((payload.len() + 15) & !15) as u32
 }
 
 /// A builder to set parameters before creating a pool.
@@ -192,8 +230,11 @@ fn ensure_dir(base: &Path) -> Result<()> {
 }
 
 // Scan the directory for backup files.
-fn scan_backups(base: &Path) -> Result<Vec<ChunkFile>> {
+fn scan_backups(base: &Path) -> Result<(Vec<ChunkFile>, u32)> {
+    let reg = Regex::new(r"^pool-data-(\d\d\d\d).data").unwrap();
+
     let mut bpaths = vec![];
+    let mut next_file = 0;
 
     // We'll consider every file in the pool directory that ends in '.data'
     // to be a pool file.
@@ -204,13 +245,24 @@ fn scan_backups(base: &Path) -> Result<Vec<ChunkFile>> {
             Some(ext) if ext == "data" => true,
             _ => false
         } {
+            match name.file_name().and_then(|x| x.to_str())
+                .and_then(|x| reg.captures(x))
+            {
+                Some(cap) => {
+                    let num = cap.at(1).unwrap().parse::<u32>().unwrap() + 1;
+                    if num > next_file {
+                        next_file = num;
+                    }
+                },
+                None => (),
+            }
             bpaths.push(name);
         }
     }
     bpaths.sort();
 
     // Open all of the files.
-    bpaths.into_iter().map(|x| ChunkFile::open(x)).collect()
+    Ok((try!(bpaths.into_iter().map(|x| ChunkFile::open(x)).collect()), next_file))
 }
 
 struct ChunkFile {
@@ -257,6 +309,21 @@ impl ChunkFile {
         })
     }
 
+    fn create(p: PathBuf) -> Result<ChunkFile> {
+        if p.is_file() {
+            panic!("Pool file shouldn't be present for creation");
+        }
+
+        let fd = try!(OpenOptions::new().read(true).append(true).create(true).open(&p));
+        Ok(ChunkFile {
+            name: p,
+            index: PairIndex::empty(),
+            buf: ReadWriter::Write(BufWriter::new(fd)),
+            writable: true,
+            size: 0,
+        })
+    }
+
     fn contains_key(&self, key: &Oid) -> bool {
         self.index.contains_key(key)
     }
@@ -272,6 +339,22 @@ impl ChunkFile {
                 Ok(Some(ch))
             },
         }
+    }
+
+    // Add a chunk to this file.
+    fn add(&mut self, chunk: &Chunk) -> Result<()> {
+        let pos;
+        let size;
+        {
+            let fd = try!(self.write());
+            pos = try!(fd.seek(SeekFrom::End(0))) as u32;
+            try!(fd.write_chunk(chunk));
+            size = try!(fd.seek(SeekFrom::Current(0))) as u32;
+        }
+
+        self.index.insert(chunk.oid().to_owned(), pos, chunk.kind());
+        self.size = size;
+        Ok(())
     }
 
     // Configure the state for reading, and borrow the reader.
@@ -309,6 +392,15 @@ impl ChunkFile {
         self.buf = ReadWriter::Read(BufReader::new(fd));
         self.read()
     }
+
+    // Configure the state for writing, and borrow the writer.
+    fn write(&mut self) -> Result<&mut BufWriter<File>> {
+        match self.buf {
+            ReadWriter::Write(ref mut wr) => return Ok(wr),
+            _ => (),
+        }
+        unimplemented!();
+    }
 }
 
 #[cfg(test)]
@@ -327,7 +419,9 @@ mod test {
         let mut pool = AdumpPool::open(&name).unwrap();
         assert_eq!(pool.backups().unwrap().len(), 0);
 
-        // let ch = testutil::make_random_chunk(64, 64);
-        // pool.add(&ch).unwrap();
+        let ch = testutil::make_random_chunk(64, 64);
+        pool.add(&ch).unwrap();
+
+        // println!("Path: {:?}", tmp.into_path());
     }
 }
