@@ -15,6 +15,10 @@ impl RamIndex {
     pub fn insert(&mut self, id: Oid, offset: u32, kind: Kind) {
         self.0.insert(id, IndexInfo { offset: offset, kind: kind });
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 impl Index for RamIndex {

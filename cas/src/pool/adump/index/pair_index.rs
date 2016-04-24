@@ -25,11 +25,19 @@ impl PairIndex {
         })
     }
 
+    pub fn save<P: AsRef<Path>>(&self, path: P, size: u32) -> Result<()> {
+        FileIndex::save(path, size, self)
+    }
+
     pub fn empty() -> PairIndex {
         PairIndex {
             file: FileIndex::empty(),
             ram: RamIndex::new(),
         }
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        !self.ram.is_empty()
     }
 }
 
