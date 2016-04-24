@@ -11,27 +11,25 @@ use cas;
 use cas::pool::ChunkSink;
 use cas::{Chunk, Kind, Oid};
 
-pub struct DataWrite<'a> {
-    sink: &'a ChunkSink,
+pub struct DataWrite {
     limit: usize,
 }
 
-impl<'a> DataWrite<'a> {
-    pub fn new(sink: &ChunkSink) -> DataWrite {
-        DataWrite::new_limit(sink, 256 * 1024)
+impl DataWrite {
+    pub fn new() -> DataWrite {
+        DataWrite::new_limit(256 * 1024)
     }
 
-    pub fn new_limit(sink: &ChunkSink, limit: usize) -> DataWrite {
+    pub fn new_limit(limit: usize) -> DataWrite {
         DataWrite {
-            sink: sink,
             limit: limit,
         }
     }
 
     // Attempt to write all of the contents of `source` to the pool,
     // returning the hash of the data or an error.
-    pub fn write<'b>(&mut self, source: &'b mut io::Read) -> cas::Result<Oid> {
-        let mut ind = indirect::Write::new(self.sink, self.limit, "IND".to_string());
+    pub fn write<'b>(&mut self, sink: &mut ChunkSink, source: &'b mut io::Read) -> cas::Result<Oid> {
+        let mut ind = indirect::Write::new(self.limit, "IND".to_string());
         loop {
             let buf = try!(self.fill(source));
             if buf.len() == 0 {
@@ -39,12 +37,12 @@ impl<'a> DataWrite<'a> {
             }
 
             let ch = Chunk::new_plain(Kind::new("blob").unwrap(), buf);
-            try!(self.sink.inner().add(&ch, self.sink));
-            try!(ind.add(ch.oid()));
+            try!(sink.add(&ch));
+            try!(ind.add(sink, ch.oid()));
             // println!("write {} bytes", ch.data_len());
         }
 
-        ind.finish()
+        ind.finish(sink)
     }
 
     // Return a buffer filled with data.  Note that this will potentially

@@ -13,7 +13,7 @@ use cas::Oid;
 // work somewhat like a Merkle tree (which because of the hash-addressed
 // storage can also be used to find the data).
 
-pub struct Write<'a> {
+pub struct Write {
     // Maximum size (in bytes) to write to each indirection block.
     limit: usize,
 
@@ -30,13 +30,10 @@ pub struct Write<'a> {
 
     // The indirection level of the first element of `buffers`.
     level: usize,
-
-    // The sink for the data.
-    sink: &'a ChunkSink,
 }
 
-impl<'a> Write<'a> {
-    pub fn new<'b>(sink: &'b ChunkSink, limit: usize, prefix: String) -> Write<'b> {
+impl Write {
+    pub fn new(limit: usize, prefix: String) -> Write {
         if prefix.as_bytes().len() != 3 {
             panic!("prefix must be 3 bytes");
         }
@@ -47,24 +44,23 @@ impl<'a> Write<'a> {
             prefix: prefix,
             buffers: Vec::new(),
             level: 0,
-            sink: sink,
         }
     }
 
-    pub fn add(&mut self, oid: &Oid) -> Result<()> {
-        self.add_level(oid, 0)
+    pub fn add(&mut self, sink: &mut ChunkSink, oid: &Oid) -> Result<()> {
+        self.add_level(sink, oid, 0)
     }
 
     // Push on the back end of the stack.
-    fn add_level(&mut self, oid: &Oid, level: usize) -> Result<()> {
+    fn add_level(&mut self, sink: &mut ChunkSink, oid: &Oid, level: usize) -> Result<()> {
         trace!("add: {} (level={})", oid.to_hex(), level);
         if self.buffers.is_empty() {
             // If we're out of nodes, create and push one.
             self.push_buffer();
         } else if self.buf().len() + Oid::size() > self.limit {
             trace!("Past limit");
-            let top = try!(self.collapse());
-            try!(self.add_level(&top, level + 1));
+            let top = try!(self.collapse(sink));
+            try!(self.add_level(sink, &top, level + 1));
 
             self.push_buffer();
         }
@@ -97,7 +93,7 @@ impl<'a> Write<'a> {
 
     // Collapse the current lowest level down to a summary hash.
     // Will panic if there are not currently any buffers.
-    fn collapse(&mut self) -> Result<Oid> {
+    fn collapse(&mut self, sink: &mut ChunkSink) -> Result<Oid> {
         let buf = self.buffers.pop().unwrap();
         assert!(buf.len() > 0);
         if buf.len() == Oid::size() {
@@ -109,7 +105,7 @@ impl<'a> Write<'a> {
             let kind = Kind::new(&format!("{}{}", self.prefix, self.level - blevel - 1)).unwrap();
             // let kind = Kind::new(&format!("{}0", self.prefix)).unwrap();
             let ch = Chunk::new_plain(kind, buf);
-            try!(self.sink.inner().add(&ch, self.sink));
+            try!(sink.add(&ch));
 
             // TODO: Implement a move out of the oid?
             trace!("collapsed: {}", ch.oid().to_hex());
@@ -118,12 +114,12 @@ impl<'a> Write<'a> {
     }
 
     // Finalize everything.
-    pub fn finish(mut self) -> Result<Oid> {
+    pub fn finish(mut self, sink: &mut ChunkSink) -> Result<Oid> {
         trace!("Running finish: {} levels, l={}", self.buffers.len(), self.level);
         if self.buffers.is_empty() {
             // TODO: Make this more general.
             let ch = Chunk::new_plain(Kind::new("NULL").unwrap(), vec![]);
-            try!(self.sink.inner().add(&ch, self.sink));
+            try!(sink.add(&ch));
             Ok(ch.oid().clone())
         } else {
             loop {
@@ -131,12 +127,12 @@ impl<'a> Write<'a> {
                 for buf in self.buffers.iter() {
                     trace!("  buf: {} long", buf.len());
                 }
-                let top = try!(self.collapse());
+                let top = try!(self.collapse(sink));
                 if self.buffers.is_empty() {
                     return Ok(top);
                 }
                 let level = self.level - self.buffers.len();
-                try!(self.add_level(&top, level));
+                try!(self.add_level(sink, &top, level));
             }
         }
     }

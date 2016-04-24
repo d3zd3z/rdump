@@ -19,16 +19,17 @@ extern crate rand;
 fn indirection() {
     let limit = 1 * 1024 * 1024 + 136;
 
-    let pool = RamPool::new();
+    let mut pool = RamPool::new();
     let top;
     {
-        let pw = pool.get_writer().unwrap();
+        // let pw = pool.get_writer().unwrap();
+        // let mut pw = pool;
         {
             let mut rd = FakeRead::new(limit);
-            let mut wr = DataWrite::new_limit(&*pw, 256 * 1024);
-            top = wr.write(&mut rd).unwrap();
+            let mut wr = DataWrite::new_limit(256 * 1024);
+            top = wr.write(&mut pool, &mut rd).unwrap();
         }
-        pw.flush().unwrap();
+        // pw.flush().unwrap();
     }
 
     // Read it back and make sure it is ok.
