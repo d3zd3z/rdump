@@ -7,7 +7,8 @@ use Oid;
 use Result;
 use std::cell::RefCell;
 use std::fs::{self, File};
-use std::io::{BufReader, Seek, SeekFrom, Write};
+use std::io::{BufReader, BufWriter, Seek, SeekFrom, Write};
+use std::mem;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
@@ -28,7 +29,7 @@ pub struct AdumpPool {
     _newfile: bool,
     _limit: u32,
 
-    cfiles: Vec<ChunkFile>,
+    cfiles: RefCell<Vec<ChunkFile>>,
 }
 
 impl AdumpPool {
@@ -62,14 +63,15 @@ impl AdumpPool {
             uuid: uuid,
             _newfile: newfile,
             _limit: limit,
-            cfiles: cfiles,
+            cfiles: RefCell::new(cfiles),
         })
     }
 }
 
 impl ChunkSource for AdumpPool {
     fn find(&self, key: &Oid) -> Result<Chunk> {
-        for cf in &self.cfiles {
+        let mut cfiles = self.cfiles.borrow_mut();
+        for cf in cfiles.iter_mut() {
             match try!(cf.find(key)) {
                 None => (),
                 Some(chunk) => return Ok(chunk),
@@ -79,7 +81,8 @@ impl ChunkSource for AdumpPool {
     }
 
     fn contains_key(&self, key: &Oid) -> Result<bool> {
-        for cf in &self.cfiles {
+        let mut cfiles = self.cfiles.borrow_mut();
+        for cf in cfiles.iter_mut() {
             if cf.contains_key(key) {
                 return Ok(true)
             }
@@ -96,7 +99,8 @@ impl ChunkSource for AdumpPool {
         let mut result = vec![];
 
         // Scan actual files for these.
-        for cfile in &self.cfiles {
+        let cfiles = self.cfiles.borrow();
+        for cfile in cfiles.iter() {
             for ent in &cfile.index {
                 if ent.kind == back {
                     println!("ent: {:?}", ent);
@@ -218,12 +222,20 @@ fn scan_backups(base: &Path) -> Result<Vec<ChunkFile>> {
 struct ChunkFile {
     name: PathBuf,
     index: PairIndex,
-    state: RefCell<State>,
+
+    // The BufReader or BufWriter holding the descriptor (or nothing, if it
+    // isn't opened at all.
+    buf: ReadWriter,
+    // True if the underlying file descriptor is opened for writing.
+    writable: bool,
+    // The known size of the file.  Should always be updated after writes.
+    size: u32,
 }
 
-enum State {
-    Closed,
-    Reading(BufReader<File>),
+enum ReadWriter {
+    None,
+    Read(BufReader<File>),
+    Write(BufWriter<File>),
 }
 
 impl ChunkFile {
@@ -245,7 +257,9 @@ impl ChunkFile {
         Ok(ChunkFile {
             name: p,
             index: index,
-            state: RefCell::new(State::Closed),
+            buf: ReadWriter::None,
+            writable: false,
+            size: size as u32,
         })
     }
 
@@ -254,50 +268,72 @@ impl ChunkFile {
     }
 
     // Read a chunk from this file, if that is possible.
-    fn find(&self, key: &Oid) -> Result<Option<Chunk>> {
+    fn find(&mut self, key: &Oid) -> Result<Option<Chunk>> {
         match self.index.get(key) {
             None => Ok(None),
             Some(info) => {
-                self.with_reader(|fd| {
-                    try!(fd.seek(SeekFrom::Start(info.offset as u64)));
-                    let ch = try!(fd.read_chunk());
-                    Ok(Some(ch))
-                })
-            }
+                let fd = try!(self.read());
+                try!(fd.seek(SeekFrom::Start(info.offset as u64)));
+                let ch = try!(fd.read_chunk());
+                Ok(Some(ch))
+            },
         }
     }
 
-    // Use a reader, opening if necessary.
-    fn with_reader<F, Z>(&self, f: F) -> Result<Z> where F: FnOnce(&mut BufReader<File>) -> Result<Z> {
-        let mut field = self.state.borrow_mut();
-
-        // Open the descriptor if necessary.
-        match *field {
-            State::Reading(_) => (),
-            State::Closed => {
-                let fd = try!(File::open(&self.name));
-                *field = State::Reading(BufReader::new(fd));
-            }
+    // Configure the state for reading, and borrow the reader.
+    fn read(&mut self) -> Result<&mut BufReader<File>> {
+        match self.buf {
+            ReadWriter::None => {
+                let file = try!(File::open(&self.name));
+                self.buf = ReadWriter::Read(BufReader::new(file));
+                return self.read();
+            },
+            ReadWriter::Read(ref mut rd) => return Ok(rd),
+            ReadWriter::Write(_) => (),
         }
 
-        let mut fd = match *field {
-            State::Reading(ref mut fd) => fd,
-            _ => panic!("Unexpected state"),
+        // Writable files will always be opened for reading as well.
+        // Consuming the buffer flushes it, so we can wrap it in a read
+        // buffer.
+        let wr = mem::replace(&mut self.buf, ReadWriter::None);
+        let fd = if let ReadWriter::Write(buf) = wr {
+            match buf.into_inner() {
+                Ok(fd) => fd,
+                Err(e) => {
+                    // In case of error, just leave things closed, and
+                    // return the error.  We've likely lost data, at this
+                    // point, so let the caller handle things.
+                    // Unfortunately, the error can't be recovered, only by
+                    // reference, so just return a general error as a
+                    // string.
+                    return Err(Error::CorruptPool(format!("error flushing buffer: {:?}", e.error())));
+                }
+            }
+        } else {
+            panic!("Unexpected path");
         };
-
-        f(fd)
+        self.buf = ReadWriter::Read(BufReader::new(fd));
+        self.read()
     }
 }
 
 #[cfg(test)]
 mod test {
     use tempdir::TempDir;
+    use testutil;
     use super::*;
+    use pool::{ChunkSink, ChunkSource};
 
     #[test]
     fn test_pool() {
         let tmp = TempDir::new("adump").unwrap();
         let name = tmp.path().join("blort");
         AdumpPool::new_builder(&name).create().unwrap();
+
+        let mut pool = AdumpPool::open(&name).unwrap();
+        assert_eq!(pool.backups().unwrap().len(), 0);
+
+        // let ch = testutil::make_random_chunk(64, 64);
+        // pool.add(&ch).unwrap();
     }
 }
