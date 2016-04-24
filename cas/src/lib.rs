@@ -5,6 +5,7 @@
 
 extern crate byteorder;
 extern crate libc;
+extern crate regex;
 extern crate rustc_serialize;
 extern crate flate2;
 extern crate rusqlite;
