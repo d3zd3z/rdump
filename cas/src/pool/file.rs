@@ -82,6 +82,14 @@ impl FilePool {
         try!(fd.read_to_end(&mut result));
         Ok(result)
     }
+
+    fn get_writer(&self) -> Result<FilePoolWriter> {
+        let tx = try!(self.db.transaction());
+        Ok(FilePoolWriter {
+            parent: self,
+            tx: tx,
+        })
+    }
 }
 
 impl ChunkSource for FilePool {
@@ -148,24 +156,29 @@ impl ChunkSource for FilePool {
         Ok(result)
     }
 
-    fn get_writer<'a>(&'a self) -> Result<Box<ChunkSink + 'a>> {
-        let tx = try!(self.db.transaction());
-        Ok(Box::new(FilePoolWriter {
-            parent: self,
-            tx: tx,
-        }))
+}
+
+pub struct FilePoolWriter<'a> {
+    parent: &'a FilePool,
+    tx: SqliteTransaction<'a>,
+}
+
+impl<'a> FilePoolWriter<'a> {
+    fn flush(self) -> Result<()> {
+        try!(self.tx.commit());
+        Ok(())
     }
+}
 
-    fn add(&self, chunk: &Chunk, _writer: &ChunkSink) -> Result<()> {
-        // TODO: Verify this is the right writer.
-
+impl<'a> ChunkSink for FilePoolWriter<'a> {
+    fn add(&mut self, chunk: &Chunk) -> Result<()> {
         let payload = match chunk.zdata() {
             None => chunk.data(),
             Some(zdata) => zdata,
         };
 
         if payload.len() < 100000 {
-            try!(self.db.execute(
+            try!(self.parent.db.execute(
                     "INSERT INTO blobs (oid, kind, size, zsize, data)
                     VALUES (?, ?, ?, ?, ?)",
                     &[&&chunk.oid().0[..],
@@ -174,7 +187,7 @@ impl ChunkSource for FilePool {
                     &(payload.len() as i32),
                     &&payload[..]]));
         } else {
-            let (dir, name) = self.get_paths(chunk.oid());
+            let (dir, name) = self.parent.get_paths(chunk.oid());
 
             // Just try writing the fd first.
             let mut fd = match fs::File::create(&name) {
@@ -188,7 +201,7 @@ impl ChunkSource for FilePool {
 
             try!(fd.write_all(&payload[..]));
 
-            try!(self.db.execute(
+            try!(self.parent.db.execute(
                     "INSERT INTO blobs (oid, kind, size, zsize)
                      VALUES (?, ?, ?, ?)",
                     &[&&chunk.oid().0[..],
@@ -200,22 +213,6 @@ impl ChunkSource for FilePool {
         Ok(())
     }
 
-}
-
-pub struct FilePoolWriter<'a> {
-    parent: &'a FilePool,
-    tx: SqliteTransaction<'a>,
-}
-
-impl<'a> ChunkSink for FilePoolWriter<'a> {
-    fn flush(self: Box<Self>) -> Result<()> {
-        try!(self.tx.commit());
-        Ok(())
-    }
-
-    fn inner(&self) -> &ChunkSource {
-        self.parent
-    }
 }
 
 #[cfg(test)]
@@ -241,11 +238,11 @@ mod test {
         let mut all = HashMap::new();
 
         {
-            let pw = pool.get_writer().unwrap();
+            let mut pw = pool.get_writer().unwrap();
 
             for i in boundary_sizes() {
                 let ch = make_random_chunk(i, i);
-                pool.add(&ch, &*pw).unwrap();
+                pw.add(&ch).unwrap();
                 let oi = all.insert(ch.oid().clone(), ch);
                 match oi {
                     None => (),
@@ -259,7 +256,7 @@ mod test {
                     continue;
                 }
                 let ch = make_uncompressible_chunk(i, i);
-                pool.add(&ch, &*pw).unwrap();
+                pw.add(&ch).unwrap();
                 let oi = all.insert(ch.oid().clone(), ch);
                 match oi {
                     None => (),
@@ -291,11 +288,11 @@ mod test {
         let mut oids = HashSet::new();
 
         {
-            let pw = pool.get_writer().unwrap();
+            let mut pw = pool.get_writer().unwrap();
 
             for i in 0 .. 1000 {
                 let ch = make_kinded_random_chunk(Kind::new("back").unwrap(), 64, i);
-                pool.add(&ch, &*pw).unwrap();
+                pw.add(&ch).unwrap();
                 oids.insert(ch.oid().clone());
             }
             pw.flush().unwrap();

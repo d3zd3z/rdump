@@ -107,12 +107,10 @@ impl ChunkSource for AdumpPool {
 
         Ok(result)
     }
+}
 
-    fn get_writer<'a>(&'a self) -> Result<Box<ChunkSink + 'a>> {
-        unimplemented!();
-    }
-
-    fn add(&self, _chunk: &Chunk, _writer: &ChunkSink) -> Result<()> {
+impl ChunkSink for AdumpPool {
+    fn add(&mut self, _chunk: &Chunk) -> Result<()> {
         unimplemented!();
     }
 }

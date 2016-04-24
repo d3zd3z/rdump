@@ -1,6 +1,5 @@
 // RAM pools.
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -16,7 +15,7 @@ use pool::{ChunkSink, ChunkSource};
 
 pub struct RamPool {
     uuid: Uuid,
-    chunks: RefCell<HashMap<Oid, Stashed>>,
+    chunks: HashMap<Oid, Stashed>,
 }
 
 pub struct Stashed {
@@ -34,18 +33,18 @@ impl RamPool {
     pub fn new() -> RamPool {
         RamPool {
             uuid: Uuid::new_v4(),
-            chunks: RefCell::new(HashMap::new()),
+            chunks: HashMap::new(),
         }
     }
 }
 
 impl ChunkSource for RamPool {
     fn find(&self, key: &Oid) -> Result<Chunk> {
-        self.chunks.borrow().get(key).map(|x| x.to_chunk()).ok_or(Error::MissingChunk)
+        self.chunks.get(key).map(|x| x.to_chunk()).ok_or(Error::MissingChunk)
     }
 
     fn contains_key(&self, key: &Oid) -> Result<bool> {
-        Ok(self.chunks.borrow().contains_key(key))
+        Ok(self.chunks.contains_key(key))
     }
 
     fn uuid<'a>(&'a self) -> &'a Uuid {
@@ -55,31 +54,17 @@ impl ChunkSource for RamPool {
     fn backups(&self) -> Result<Vec<Oid>> {
         unimplemented!();
     }
+}
 
-    fn get_writer<'a>(&'a self) -> Result<Box<ChunkSink + 'a>> {
-        Ok(Box::new(RamWriter(self)))
-    }
-
-    fn add(&self, chunk: &Chunk, _writer: &ChunkSink) -> Result<()> {
+impl ChunkSink for RamPool {
+    fn add(&mut self, chunk: &Chunk) -> Result<()> {
         let id = chunk.oid().clone();
         let payload = Stashed {
             kind: chunk.kind(),
             data: chunk.data().to_vec(),
         };
-        self.chunks.borrow_mut().entry(id)
+        self.chunks.entry(id)
             .or_insert(payload);
         Ok(())
-    }
-}
-
-struct RamWriter<'a>(&'a RamPool);
-
-impl<'a> ChunkSink for RamWriter<'a> {
-    fn flush(self: Box<Self>) -> Result<()> {
-        Ok(())
-    }
-
-    fn inner(&self) -> &ChunkSource {
-        self.0
     }
 }

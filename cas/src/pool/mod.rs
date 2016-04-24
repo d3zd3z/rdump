@@ -1,13 +1,13 @@
 // A pool is a place that chunks can be stored.
 
 use Result;
-use Error;
+// use Error;
 use oid::Oid;
 use chunk::Chunk;
 use uuid::Uuid;
 
-use std::path::Path;
-use std::fs;
+// use std::path::Path;
+// use std::fs;
 
 pub use pool::file::FilePool;
 pub use self::ram::RamPool;
@@ -35,32 +35,14 @@ pub trait ChunkSource {
 
     /// Return the set of backups stored in this pool.
     fn backups(&self) -> Result<Vec<Oid>>;
-
-    /// Get a writer for this source (if possible).
-    fn get_writer<'a>(&'a self) -> Result<Box<ChunkSink + 'a>>;
-
-    /// Add a chunk to the pool.
-    fn add(&self, chunk: &Chunk, writer: &ChunkSink) -> Result<()>;
 }
 
-// TODO: How can we specify that ChunkSink should always be deref to a
-// source?
-/// A sink for chunks.
+// Something that chunks can be written to.
 pub trait ChunkSink {
-    /// Flush, and consume this sink.
-    fn flush(self: Box<Self>) -> Result<()>;
-
-    /// Get the inner source, so that code doesn't need to pass both of
-    /// these around.
-    fn inner(&self) -> &ChunkSource;
-
-    // TODO: Figure out how to write this.
-    // /// A convenience add method.
-    // fn add(self, chunk: &Chunk) -> Result<()> {
-    //     self.inner().add(chunk, self)
-    // }
+    fn add(&mut self, chunk: &Chunk) -> Result<()>;
 }
 
+/*
 /// Attempt to open a pool for reading, auto-determining the type.
 pub fn open<P: AsRef<Path>>(path: P) -> Result<Box<ChunkSource>> {
     let meta = try!(fs::metadata(path.as_ref().join("data.db")));
@@ -74,3 +56,4 @@ pub fn open<P: AsRef<Path>>(path: P) -> Result<Box<ChunkSource>> {
         Err(e) => Err(e),
     }
 }
+*/
