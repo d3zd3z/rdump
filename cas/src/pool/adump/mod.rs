@@ -85,6 +85,13 @@ impl AdumpPool {
             Some(ref cf) => cf.size + size > self.limit,
         }
     }
+
+    pub fn flush(&mut self) -> Result<()> {
+        for cfile in self.cfiles.borrow_mut().iter_mut() {
+            try!(cfile.flush());
+        }
+        Ok(())
+    }
 }
 
 impl ChunkSource for AdumpPool {
@@ -357,6 +364,22 @@ impl ChunkFile {
         Ok(())
     }
 
+    // Write the index out if this file is dirty.
+    fn flush(&mut self) -> Result<()> {
+        match self.buf {
+            ReadWriter::Write(ref mut wr) => try!(wr.flush()),
+            _ => (),
+        }
+
+        if self.index.is_dirty() {
+            let index_name = self.name.with_extension("idx");
+            try!(self.index.save(&index_name, self.size));
+
+            mem::replace(&mut self.index, try!(PairIndex::load(&index_name, self.size)));
+        }
+        Ok(())
+    }
+
     // Configure the state for reading, and borrow the reader.
     fn read(&mut self) -> Result<&mut BufReader<File>> {
         match self.buf {
@@ -421,6 +444,7 @@ mod test {
 
         let ch = testutil::make_random_chunk(64, 64);
         pool.add(&ch).unwrap();
+        pool.flush().unwrap();
 
         // println!("Path: {:?}", tmp.into_path());
     }
