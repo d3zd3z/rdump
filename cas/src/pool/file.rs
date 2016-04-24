@@ -83,7 +83,7 @@ impl FilePool {
         Ok(result)
     }
 
-    fn get_writer(&self) -> Result<FilePoolWriter> {
+    pub fn get_writer(&self) -> Result<FilePoolWriter> {
         let tx = try!(self.db.transaction());
         Ok(FilePoolWriter {
             parent: self,
@@ -164,7 +164,7 @@ pub struct FilePoolWriter<'a> {
 }
 
 impl<'a> FilePoolWriter<'a> {
-    fn flush(self) -> Result<()> {
+    pub fn flush(self) -> Result<()> {
         try!(self.tx.commit());
         Ok(())
     }
