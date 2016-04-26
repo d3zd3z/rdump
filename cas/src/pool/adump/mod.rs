@@ -142,7 +142,7 @@ impl ChunkSource for AdumpPool {
 impl ChunkSink for AdumpPool {
     fn add(&mut self, chunk: &Chunk) -> Result<()> {
         if self.needs_new_file(write_size(chunk)) {
-            let name = self.base.with_file_name(&format!("pool-data-{:04}.data", self.next_file));
+            let name = self.base.join(&format!("pool-data-{:04}.data", self.next_file));
             self.next_file += 1;
 
             println!("Needs new file: {:?}", name);
@@ -487,7 +487,7 @@ mod test {
             let mut pool = AdumpPool::open(&name).unwrap();
             assert_eq!(pool.backups().unwrap().len(), 0);
 
-            for _ in 1 .. 2 {
+            for _ in 1 .. 1000 {
                 tr.add(&mut pool);
             }
             pool.flush().unwrap();
@@ -495,11 +495,9 @@ mod test {
             tr.check(&pool);
         }
 
-        /*
         {
             let pool = AdumpPool::open(&name).unwrap();
             tr.check(&pool);
         }
-        */
     }
 }
