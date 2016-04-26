@@ -428,7 +428,27 @@ impl ChunkFile {
             ReadWriter::Write(ref mut wr) => return Ok(wr),
             _ => (),
         }
-        unimplemented!();
+
+        // If it is opened for writing, we can steal the handle.
+        if self.writable {
+            let rd = mem::replace(&mut self.buf, ReadWriter::None);
+            let fd = if let ReadWriter::Read(buf) = rd {
+                buf.into_inner()
+            } else {
+                panic!("Unexpected code path");
+            };
+            self.buf = ReadWriter::Write(BufWriter::new(fd));
+        } else {
+            // If it is opened, close it.
+            self.buf = ReadWriter::None;
+
+            // And open a fresh descriptor for writing.
+            let fd = try!(OpenOptions::new()
+                          .read(true).write(true).append(true)
+                          .open(&self.name));
+            self.buf = ReadWriter::Write(BufWriter::new(fd));
+        }
+        self.write()
     }
 }
 
@@ -498,6 +518,16 @@ mod test {
             }
             pool.flush().unwrap();
 
+            tr.check(&pool);
+        }
+
+        {
+            let mut pool = AdumpPool::open(&name).unwrap();
+            tr.check(&pool);
+            for _ in 1 .. 1000 {
+                tr.add(&mut pool);
+            }
+            pool.flush().unwrap();
             tr.check(&pool);
         }
 
