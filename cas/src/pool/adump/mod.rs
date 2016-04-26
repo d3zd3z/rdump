@@ -524,7 +524,11 @@ mod test {
         {
             let mut pool = AdumpPool::open(&name).unwrap();
             tr.check(&pool);
-            for _ in 1 .. 1000 {
+            for _ in 1 .. 500 {
+                tr.add(&mut pool);
+            }
+            tr.check(&pool);
+            for _ in 1 .. 500 {
                 tr.add(&mut pool);
             }
             pool.flush().unwrap();
