@@ -321,7 +321,7 @@ impl ChunkFile {
             panic!("Pool file shouldn't be present for creation");
         }
 
-        let fd = try!(OpenOptions::new().read(true).append(true).create(true).open(&p));
+        let fd = try!(OpenOptions::new().read(true).write(true).append(true).create(true).open(&p));
         Ok(ChunkFile {
             name: p,
             index: PairIndex::empty(),
@@ -428,24 +428,78 @@ impl ChunkFile {
 
 #[cfg(test)]
 mod test {
+    use Kind;
+    use rand::{Rng, StdRng};
     use tempdir::TempDir;
     use testutil;
     use super::*;
     use pool::{ChunkSink, ChunkSource};
 
+    struct Tracker {
+        nodes: Vec<(u32, Kind)>,
+        kinds: Vec<Kind>,
+        rng: StdRng,
+    }
+
+    impl Tracker {
+        fn new() -> Tracker {
+            let mut kinds = vec![];
+            for text in &["blob", "idx0", "idx1", "data", "dir "] {
+                kinds.push(Kind::new(text).unwrap());
+            }
+
+            Tracker {
+                nodes: vec![],
+                kinds: kinds,
+                rng: StdRng::new().unwrap(),
+            }
+        }
+
+        fn add<P: ChunkSink>(&mut self, pool: &mut P) {
+            let num = self.nodes.len() as u32;
+            let size = self.rng.gen_range(16u32, 1024);
+            let kind = self.kinds[size as usize % self.kinds.len()];
+            let chunk = testutil::make_kinded_random_chunk(kind, size, num);
+            pool.add(&chunk).unwrap();
+
+            self.nodes.push((size, kind));
+        }
+
+        fn check<P: ChunkSource>(&self, pool: &P) {
+            for (i, &(size, kind)) in self.nodes.iter().enumerate() {
+                let expect = testutil::make_kinded_random_chunk(kind, size, i as u32);
+                let got = pool.find(expect.oid()).unwrap();
+                assert_eq!(&got.data()[..], &expect.data()[..]);
+            }
+        }
+    }
+
     #[test]
     fn test_pool() {
+        let mut tr = Tracker::new();
         let tmp = TempDir::new("adump").unwrap();
         let name = tmp.path().join("blort");
         AdumpPool::new_builder(&name).create().unwrap();
 
-        let mut pool = AdumpPool::open(&name).unwrap();
-        assert_eq!(pool.backups().unwrap().len(), 0);
-
-        let ch = testutil::make_random_chunk(64, 64);
-        pool.add(&ch).unwrap();
-        pool.flush().unwrap();
-
         // println!("Path: {:?}", tmp.into_path());
+
+        {
+            let mut pool = AdumpPool::open(&name).unwrap();
+            assert_eq!(pool.backups().unwrap().len(), 0);
+
+            for _ in 1 .. 2 {
+                tr.add(&mut pool);
+            }
+            pool.flush().unwrap();
+
+            tr.check(&pool);
+        }
+
+        /*
+        {
+            let pool = AdumpPool::open(&name).unwrap();
+            tr.check(&pool);
+        }
+        */
     }
 }
