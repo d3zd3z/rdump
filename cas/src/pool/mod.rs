@@ -10,6 +10,7 @@ use std::path::Path;
 use std::fs;
 
 pub use pool::file::FilePool;
+pub use pool::adump::AdumpPool;
 pub use self::ram::RamPool;
 
 mod sql;
