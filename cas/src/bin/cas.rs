@@ -2,8 +2,12 @@
 
 extern crate cas;
 
+#[macro_use]
+extern crate timeit;
+
 use cas::Kind;
 use cas::pool::ChunkSource;
+use cas::pool::{AdumpPool, FilePool, RamPool};
 use std::error;
 use std::fs::{self, File};
 use std::io::Read;
@@ -13,13 +17,49 @@ use std::result;
 pub type Result<T> = result::Result<T, Box<error::Error + Send + Sync>>;
 
 fn main() {
-    cas::pool::FilePool::create(&Path::new("/wd/test-pool/foo")).unwrap();
-    let mut pool = cas::pool::open(&Path::new("/wd/test-pool/foo")).unwrap();
-    let mut walk = Walker::new(&mut *pool);
-    // walk.walk(&Path::new("/mnt/linaro/optee-qemu/.zfs/snapshot/tip-2016-02-10/linux")).unwrap();
-    walk.walk(&Path::new("/mnt/linaro/optee-qemu/linux")).unwrap();
-    // walk.walk(&Path::new("/mnt/linaro/.zfs/snapshot/tip-2016-02-10")).unwrap();
-    println!("Total:\n{:#?}", walk.info);
+    static BASE: &'static str = "/mnt/linaro/optee-qemu/linux";
+
+    // First, dump everything to a ram pool.  This should fill the cache
+    // with the read data, so that the subsequent operations 
+
+    let sec = timeit_loops!(1, {
+        let mut pool = RamPool::new();
+        walk_tree(&mut pool, BASE).unwrap();
+    });
+    println!("RamPool:: {}", sec);
+
+    cleanup("pool1");
+    let sec = timeit_loops!(1, {
+        FilePool::create("pool1").unwrap();
+        let mut pool = FilePool::open("pool1").unwrap();
+        pool.begin_writing().unwrap();
+        walk_tree(&mut pool, BASE).unwrap();
+        pool.flush().unwrap();
+    });
+    println!("FilePool: {}", sec);
+
+    cleanup("pool2");
+    let sec = timeit_loops!(1, {
+        AdumpPool::new_builder("pool2").create().unwrap();
+        let mut pool = AdumpPool::open("pool2").unwrap();
+        walk_tree(&mut pool, BASE).unwrap();
+        pool.flush().unwrap();
+    });
+    println!("AdumpPool: {}", sec);
+}
+
+fn walk_tree<P: AsRef<Path>>(pool: &mut ChunkSource, tree: P) -> Result<()> {
+    let mut walk = Walker::new(pool);
+    try!(walk.walk(tree.as_ref()));
+    println!("Total:\n{:?}", walk.info);
+    Ok(())
+}
+
+fn cleanup<P: AsRef<Path>>(path: P) {
+    let path = path.as_ref();
+    if path.exists() {
+        fs::remove_dir_all(path).unwrap();
+    }
 }
 
 struct Walker<'a> {
