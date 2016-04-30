@@ -122,7 +122,6 @@ impl ChunkSource for AdumpPool {
         for cfile in cfiles.iter() {
             for ent in &cfile.index {
                 if ent.kind == back {
-                    println!("ent: {:?}", ent);
                     result.push(ent.oid.clone());
                 }
             }
