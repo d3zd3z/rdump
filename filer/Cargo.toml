@@ -19,6 +19,11 @@ path = "../cas"
 tempdir = "0.3.4"
 rand = "0.3.14"
 
+[[bin]]
+name = "filer"
+test = false
+doc = false
+
 # Optimize the tests.  It compiles slower, and is harder to debug, but
 # some of the tests are rather slow.  The debug assertions are still
 # on.
