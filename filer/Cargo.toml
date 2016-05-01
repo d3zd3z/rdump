@@ -6,6 +6,7 @@ authors = [ "David Brown <davidb@davidb.org>" ]
 license = "MIT"
 
 [dependencies]
+byteorder = "0.5.1"
 
 # TODO: Test-only dependency
 uuid = "0.1.18"
