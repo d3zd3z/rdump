@@ -2,7 +2,7 @@
 
 use std::error;
 use std::fmt;
-use std::io;
+use std::io::{self, ErrorKind};
 use std::num::ParseIntError;
 use std::str::ParseBoolError;
 use std::string::FromUtf8Error;
@@ -26,6 +26,15 @@ pub enum Error {
     BadKindLength,
     MissingChunk,
     NotAPool,
+}
+
+impl Error {
+    pub fn is_unexpected_eof(&self) -> bool {
+        match *self {
+            Error::Io(ref err) if err.kind() == ErrorKind::UnexpectedEof => true,
+            _ => false,
+        }
+    }
 }
 
 impl From<io::Error> for Error {
