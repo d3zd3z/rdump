@@ -65,9 +65,27 @@ impl<'a> Walk<'a> {
     fn show_node(&self, id: &Oid) {
         let ch = self.source.find(id).unwrap();
         println!("kind: {:?}", ch.kind());
-        (&ch.data()[..]).dump();
+        // (&ch.data()[..]).dump();
         let props = (&ch.data()[..]).read_props().unwrap();
         println!("props: {:#?}", props);
+
+        if props.kind == "DIR" {
+            let child_oid = props.data.get("children").unwrap();
+            let child_oid = Oid::from_hex(child_oid).unwrap();
+            self.show_dir(&child_oid);
+        }
+    }
+
+    fn show_dir(&self, id: &Oid) {
+        let ch = self.source.find(id).unwrap();
+        // (&ch.data()[..]).dump();
+        let entries = (&ch.data()[..]).read_dir().unwrap();
+        println!("dir: {:#?}", entries);
+
+        for child in &entries {
+            println!("Walk: {:?}", child.name);
+            self.show_node(&child.oid);
+        }
     }
 }
 
@@ -103,6 +121,24 @@ trait Decode: Read {
             data: dict,
         })
     }
+
+    fn read_dir(&mut self) -> Result<Vec<DirEntry>> {
+        let mut result = vec![];
+        loop {
+            let name = match self.read_string2() {
+                Ok(name) => name,
+                Err(ref err) if err.is_unexpected_eof() => break,
+                Err(e) => return Err(e),
+            };
+            let mut buf = [0u8; 20];
+            try!(self.read_exact(&mut buf));
+            result.push(DirEntry {
+                name: name,
+                oid: Oid::from_raw(&buf),
+            });
+        }
+        Ok(result)
+    }
 }
 
 impl<T: Read> Decode for T {}
@@ -111,4 +147,10 @@ impl<T: Read> Decode for T {}
 struct Props {
     kind: String,
     data: BTreeMap<String, String>,
+}
+
+#[derive(Debug)]
+struct DirEntry {
+    name: String,
+    oid: Oid,
 }
