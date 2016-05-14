@@ -73,6 +73,10 @@ impl<'a> Walk<'a> {
             let child_oid = props.data.get("children").unwrap();
             let child_oid = Oid::from_hex(child_oid).unwrap();
             self.show_dir(&child_oid);
+        } else if props.kind == "REG" {
+            let data_oid = props.data.get("data").unwrap();
+            let data_oid = Oid::from_hex(data_oid).unwrap();
+            self.show_data(&data_oid);
         }
     }
 
@@ -86,6 +90,11 @@ impl<'a> Walk<'a> {
             println!("Walk: {:?}", child.name);
             self.show_node(&child.oid);
         }
+    }
+
+    fn show_data(&self, id: &Oid) {
+        let ch = self.source.find(id).unwrap();
+        println!("data: {:#?}", ch.kind())
     }
 }
 
