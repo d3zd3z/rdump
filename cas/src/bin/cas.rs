@@ -20,7 +20,7 @@ fn main() {
     static BASE: &'static str = "/mnt/linaro/optee-qemu/linux";
 
     // First, dump everything to a ram pool.  This should fill the cache
-    // with the read data, so that the subsequent operations 
+    // with the read data, so that the subsequent operations
 
     let sec = timeit_loops!(1, {
         let mut pool = RamPool::new();
@@ -79,7 +79,6 @@ struct WalkInfo {
 }
 
 impl<'a> Walker<'a> {
-
     fn new(pool: &mut ChunkSink) -> Walker {
         Walker {
             pool: pool,
@@ -155,13 +154,12 @@ impl<'a> Walker<'a> {
             self.info.chunks += 1;
             // self.info.bytes += count as u64;
 
-            /*
-            let payload = match ch.zdata() {
-                None => ch.data(),
-                Some(zdata) => zdata,
-            };
-            self.info.bytes += payload.len() as u64;
-            */
+            // let payload = match ch.zdata() {
+            // None => ch.data(),
+            // Some(zdata) => zdata,
+            // };
+            // self.info.bytes += payload.len() as u64;
+            //
             if try!(self.pool.contains_key(ch.oid())) {
                 self.info.dup_chunks += 1;
                 self.info.dup_bytes += count as u64;

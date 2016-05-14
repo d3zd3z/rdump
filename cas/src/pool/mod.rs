@@ -44,18 +44,17 @@ pub trait ChunkSink: ChunkSource {
     fn add(&mut self, chunk: &Chunk) -> Result<()>;
 }
 
-/*
-/// Attempt to open a pool for reading, auto-determining the type.
-pub fn open<P: AsRef<Path>>(path: P) -> Result<Box<ChunkSource>> {
-    let meta = try!(fs::metadata(path.as_ref().join("data.db")));
-
-    if !meta.is_file() {
-        return Err(Error::NotAPool);
-    }
-
-    match FilePool::open(path) {
-        Ok(p) => Ok(Box::new(p)),
-        Err(e) => Err(e),
-    }
-}
-*/
+// Attempt to open a pool for reading, auto-determining the type.
+// pub fn open<P: AsRef<Path>>(path: P) -> Result<Box<ChunkSource>> {
+// let meta = try!(fs::metadata(path.as_ref().join("data.db")));
+//
+// if !meta.is_file() {
+// return Err(Error::NotAPool);
+// }
+//
+// match FilePool::open(path) {
+// Ok(p) => Ok(Box::new(p)),
+// Err(e) => Err(e),
+// }
+// }
+//

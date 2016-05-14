@@ -27,7 +27,9 @@ pub struct SchemaCompat<'a, C: Clone + 'a> {
     pub inabilities: &'a [C],
 }
 
-impl<'a, C> Schema<'a, C> where C: 'a + Clone {
+impl<'a, C> Schema<'a, C>
+    where C: 'a + Clone
+{
     /// Given an empty database, create the given schema in it.
     pub fn set(&self, db: &SqliteConnection) -> SqliteResult<()> {
         let tx = try!(db.transaction());
@@ -36,8 +38,7 @@ impl<'a, C> Schema<'a, C> where C: 'a + Clone {
         }
 
         try!(db.execute("CREATE TABLE schema_version (version TEXT)", &[]));
-        try!(db.execute("INSERT INTO schema_version VALUES (?)",
-             &[&self.version]));
+        try!(db.execute("INSERT INTO schema_version VALUES (?)", &[&self.version]));
 
         try!(tx.commit());
         Ok(())
@@ -82,7 +83,7 @@ impl<'a, C> Schema<'a, C> where C: 'a + Clone {
 #[cfg(test)]
 mod test {
     use super::*;
-    use rusqlite::{SqliteConnection};
+    use rusqlite::SqliteConnection;
     use tempdir::TempDir;
 
     #[derive(PartialOrd, Ord, PartialEq, Eq, Clone)]
@@ -90,14 +91,11 @@ mod test {
         NoBar,
     }
 
-    static SCHEMA1: Schema<'static, Modes> =
-        Schema {
-            version: "1",
-            schema: &[
-                r"CREATE TABLE foo(id INTEGER PRIMARY KEY)",
-            ],
-            compats: &[],
-        };
+    static SCHEMA1: Schema<'static, Modes> = Schema {
+        version: "1",
+        schema: &[r"CREATE TABLE foo(id INTEGER PRIMARY KEY)"],
+        compats: &[],
+    };
 
     #[test]
     fn test_set() {

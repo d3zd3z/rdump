@@ -96,7 +96,7 @@ mod test {
                     Some(info) => {
                         assert_eq!(info.offset, num);
                         assert_eq!(info.kind, kind);
-                    },
+                    }
                 }
 
                 let oid2 = oid.inc();
@@ -125,7 +125,7 @@ mod test {
 
         static COUNT: u32 = 10000;
 
-        for ofs in 0 .. COUNT {
+        for ofs in 0..COUNT {
             track.add(&mut r1, ofs);
         }
 
@@ -134,7 +134,7 @@ mod test {
         let name1 = tmp.path().join("r1.idx");
         FileIndex::save(&name1, COUNT, &r1).unwrap();
 
-        match PairIndex::load(&name1, COUNT-1) {
+        match PairIndex::load(&name1, COUNT - 1) {
             Err(Error::InvalidIndex(_)) => (),
             Err(e) => panic!("Unexpected error: {:?}", e),
             Ok(_) => panic!("Shouldn't be able to load index with size incorrect"),
@@ -149,15 +149,15 @@ mod test {
         track.check(&r2);
 
         // Add some more.
-        for ofs in COUNT .. 2*COUNT {
+        for ofs in COUNT..2 * COUNT {
             track.add(&mut r2, ofs);
         }
         track.check(&r2);
 
         let name2 = tmp.path().join("r2.idx");
-        FileIndex::save(&name2, 2*COUNT, &r2).unwrap();
+        FileIndex::save(&name2, 2 * COUNT, &r2).unwrap();
 
-        let r3 = PairIndex::load(&name2, 2*COUNT).unwrap();
+        let r3 = PairIndex::load(&name2, 2 * COUNT).unwrap();
         track.check(&r3);
 
         // Print out the path, which will prevent it from being removed.

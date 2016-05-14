@@ -49,12 +49,12 @@ mod tests {
                 match inflate(&ztext[..], text.len()) {
                     None => {
                         panic!("Unable to re-inflate compresed data");
-                    },
+                    }
                     Some(orig) => {
                         assert_eq!(text, orig);
                     }
                 }
-            },
+            }
         }
     }
 

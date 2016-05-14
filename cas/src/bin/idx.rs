@@ -7,7 +7,7 @@ use cas::pdump::HexDump;
 use cas::pool::ChunkSource;
 use cas::pool::adump::AdumpPool;
 
-fn main () {
+fn main() {
     let pool = AdumpPool::open("/a64/tpool").unwrap();
     println!("uuid: {:?}", pool.uuid());
 

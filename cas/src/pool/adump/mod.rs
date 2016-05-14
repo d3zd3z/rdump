@@ -77,7 +77,7 @@ impl AdumpPool {
     fn needs_new_file(&self, size: u32) -> bool {
         // If we're configured in newfile mode, always write the new file.
         if self.newfile && !self.dirty {
-            return true
+            return true;
         }
 
         match self.cfiles.borrow().last() {
@@ -110,7 +110,7 @@ impl ChunkSource for AdumpPool {
         let mut cfiles = self.cfiles.borrow_mut();
         for cf in cfiles.iter_mut() {
             if cf.contains_key(key) {
-                return Ok(true)
+                return Ok(true);
             }
         }
         Ok(false)
@@ -249,17 +249,17 @@ fn scan_backups(base: &Path) -> Result<(Vec<ChunkFile>, u32)> {
         let name = ent.path();
         if match name.extension().and_then(|x| x.to_str()) {
             Some(ext) if ext == "data" => true,
-            _ => false
+            _ => false,
         } {
-            match name.file_name().and_then(|x| x.to_str())
-                .and_then(|x| reg.captures(x))
-            {
+            match name.file_name()
+                .and_then(|x| x.to_str())
+                .and_then(|x| reg.captures(x)) {
                 Some(cap) => {
                     let num = cap.at(1).unwrap().parse::<u32>().unwrap() + 1;
                     if num > next_file {
                         next_file = num;
                     }
-                },
+                }
                 None => (),
             }
             bpaths.push(name);
@@ -343,7 +343,7 @@ impl ChunkFile {
                 try!(fd.seek(SeekFrom::Start(info.offset as u64)));
                 let ch = try!(fd.read_chunk());
                 Ok(Some(ch))
-            },
+            }
         }
     }
 
@@ -374,7 +374,8 @@ impl ChunkFile {
             let index_name = self.name.with_extension("idx");
             try!(self.index.save(&index_name, self.size));
 
-            mem::replace(&mut self.index, try!(PairIndex::load(&index_name, self.size)));
+            mem::replace(&mut self.index,
+                         try!(PairIndex::load(&index_name, self.size)));
         }
         Ok(())
     }
@@ -386,7 +387,7 @@ impl ChunkFile {
                 let file = try!(File::open(&self.name));
                 self.buf = ReadWriter::Read(BufReader::new(file));
                 return self.read();
-            },
+            }
             ReadWriter::Read(ref mut rd) => return Ok(rd),
             ReadWriter::Write(_) => (),
         }
@@ -506,7 +507,7 @@ mod test {
             let mut pool = AdumpPool::open(&name).unwrap();
             assert_eq!(pool.backups().unwrap().len(), 0);
 
-            for _ in 1 .. 1000 {
+            for _ in 1..1000 {
                 tr.add(&mut pool);
             }
             pool.flush().unwrap();
@@ -517,11 +518,11 @@ mod test {
         {
             let mut pool = AdumpPool::open(&name).unwrap();
             tr.check(&pool);
-            for _ in 1 .. 500 {
+            for _ in 1..500 {
                 tr.add(&mut pool);
             }
             tr.check(&pool);
-            for _ in 1 .. 500 {
+            for _ in 1..500 {
                 tr.add(&mut pool);
             }
             pool.flush().unwrap();

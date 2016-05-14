@@ -34,7 +34,7 @@ impl FilePool {
 
         let tx = try!(db.transaction());
         try!(db.execute("INSERT INTO props (key, value) values ('uuid', ?)",
-            &[&Uuid::new_v4().hyphenated().to_string()]));
+                        &[&Uuid::new_v4().hyphenated().to_string()]));
         try!(tx.commit());
         Ok(())
     }
@@ -49,8 +49,9 @@ impl FilePool {
         // TODO: Need something more robust than their query_one.
         // We should be able to handle no uuid, and probably just create
         // one.
-        let uuid: String = try!(db.query_row("SELECT value FROM props WHERE key = 'uuid'", &[],
-            |row| { row.get(0) }));
+        let uuid: String = try!(db.query_row("SELECT value FROM props WHERE key = 'uuid'",
+                                             &[],
+                                             |row| row.get(0)));
 
         let uuid = try!(Uuid::parse_str(&uuid));
 
@@ -97,8 +98,8 @@ impl ChunkSource for FilePool {
         // Ideally, we could just query the data for NULL, but this doesn't
         // seem to be exposed properly.  Instead, retrieve it as a separate
         // column.
-        let mut stmt = try!(self.db.prepare(
-                "SELECT kind, size, zsize, data, data IS NULL FROM blobs WHERE oid = ?"));
+        let mut stmt = try!(self.db
+            .prepare("SELECT kind, size, zsize, data, data IS NULL FROM blobs WHERE oid = ?"));
         let mut rows = try!(stmt.query(&[&&key.0[..]]));
         match rows.next() {
             None => Err(Error::MissingChunk),
@@ -130,12 +131,9 @@ impl ChunkSource for FilePool {
     }
 
     fn contains_key(&self, key: &Oid) -> Result<bool> {
-        let count: i32 = try!(self.db.query_row(
-                "SELECT COUNT(*) FROM blobs WHERE oid = ?",
-                &[&&key.0[..]],
-                |row| {
-                    row.get(0)
-                }));
+        let count: i32 = try!(self.db.query_row("SELECT COUNT(*) FROM blobs WHERE oid = ?",
+                                                &[&&key.0[..]],
+                                                |row| row.get(0)));
         Ok(count > 0)
     }
 
@@ -144,8 +142,7 @@ impl ChunkSource for FilePool {
     }
 
     fn backups(&self) -> Result<Vec<Oid>> {
-        let mut stmt = try!(self.db.prepare(
-                "SELECT oid FROM blobs WHERE kind = 'back'"));
+        let mut stmt = try!(self.db.prepare("SELECT oid FROM blobs WHERE kind = 'back'"));
         let mut result = Vec::new();
         for row in try!(stmt.query(&[])) {
             let row = try!(row);
@@ -155,7 +152,6 @@ impl ChunkSource for FilePool {
 
         Ok(result)
     }
-
 }
 
 pub struct FilePoolWriter<'a> {
@@ -196,14 +192,14 @@ impl<'a> ChunkSink for FilePoolWriter<'a> {
         };
 
         if payload.len() < 100000 {
-            try!(self.parent.db.execute(
-                    "INSERT INTO blobs (oid, kind, size, zsize, data)
-                    VALUES (?, ?, ?, ?, ?)",
-                    &[&&chunk.oid().0[..],
-                    &chunk.kind().to_string(),
-                    &(chunk.data_len() as i32),
-                    &(payload.len() as i32),
-                    &&payload[..]]));
+            try!(self.parent.db.execute("INSERT INTO blobs (oid, kind, size, zsize, data)
+                    \
+                                         VALUES (?, ?, ?, ?, ?)",
+                                        &[&&chunk.oid().0[..],
+                                          &chunk.kind().to_string(),
+                                          &(chunk.data_len() as i32),
+                                          &(payload.len() as i32),
+                                          &&payload[..]]));
         } else {
             let (dir, name) = self.parent.get_paths(chunk.oid());
 
@@ -214,23 +210,22 @@ impl<'a> ChunkSink for FilePoolWriter<'a> {
                     // Try creating the directory, and retrying.
                     try!(fs::create_dir(&dir));
                     try!(fs::File::create(&name))
-                },
+                }
             };
 
             try!(fd.write_all(&payload[..]));
 
-            try!(self.parent.db.execute(
-                    "INSERT INTO blobs (oid, kind, size, zsize)
-                     VALUES (?, ?, ?, ?)",
-                    &[&&chunk.oid().0[..],
-                      &chunk.kind().to_string(),
-                      &(chunk.data_len() as i32),
-                      &(payload.len() as i32)]));
+            try!(self.parent.db.execute("INSERT INTO blobs (oid, kind, size, zsize)
+                     \
+                                         VALUES (?, ?, ?, ?)",
+                                        &[&&chunk.oid().0[..],
+                                          &chunk.kind().to_string(),
+                                          &(chunk.data_len() as i32),
+                                          &(payload.len() as i32)]));
         }
 
         Ok(())
     }
-
 }
 
 #[cfg(test)]
@@ -241,9 +236,8 @@ mod test {
     // use std::path::Path;
     use std::collections::HashMap;
     use tempdir::TempDir;
-    use testutil::{make_random_chunk, make_uncompressible_chunk,
-        make_kinded_random_chunk,
-        boundary_sizes};
+    use testutil::{make_random_chunk, make_uncompressible_chunk, make_kinded_random_chunk,
+                   boundary_sizes};
 
     #[test]
     fn simple_create() {
@@ -308,7 +302,7 @@ mod test {
         {
             let mut pw = pool.get_writer().unwrap();
 
-            for i in 0 .. 1000 {
+            for i in 0..1000 {
                 let ch = make_kinded_random_chunk(Kind::new("back").unwrap(), 64, i);
                 pw.add(&ch).unwrap();
                 oids.insert(ch.oid().clone());
@@ -331,43 +325,38 @@ enum PoolInabilities {
     NoCTimeCache,
 }
 
-static POOL_SCHEMA: sql::Schema<'static, PoolInabilities> =
-    sql::Schema {
-        version: "1:2014-03-18",
-        schema: &[
-            r#"PRAGMA PAGE_SIZE=8192"#,
-            r#"CREATE TABLE blobs (
+static POOL_SCHEMA: sql::Schema<'static, PoolInabilities> = sql::Schema {
+    version: "1:2014-03-18",
+    schema: &[r#"PRAGMA PAGE_SIZE=8192"#,
+              r#"CREATE TABLE blobs (
                 id INTEGER PRIMARY KEY,
                 oid BLOB UNIQUE NOT NULL,
                 kind TEXT,
                 size INTEGER,
                 zsize INTEGER,
                 data BLOB)"#,
-            r#"CREATE INDEX blobs_oid ON blobs(oid)"#,
-            r#"CREATE INDEX blobs_backs ON blobs(kind) where kind = 'back'"#,
-            r#"CREATE TABLE props (
+              r#"CREATE INDEX blobs_oid ON blobs(oid)"#,
+              r#"CREATE INDEX blobs_backs ON blobs(kind) where kind = 'back'"#,
+              r#"CREATE TABLE props (
                 key text PRIMARY KEY,
                 value TEXT)"#,
-            r#"CREATE TABLE filesystems (
+              r#"CREATE TABLE filesystems (
                 fsid INTEGER PRIMARY KEY,
                 uuid TEXT UNIQUE)"#,
-            r#"CREATE TABLE ctime_dirs (
+              r#"CREATE TABLE ctime_dirs (
                 pkey INTEGER PRIMARY KEY,
                 fsid INTEGER REFERENCES filesystem (fsid) NOT NULL,
                 pino INTEGER NOT NULL,
                 UNIQUE (fsid, pino))"#,
-            r#"CREATE TABLE ctime_cache (
+              r#"CREATE TABLE ctime_cache (
                 pkey INTEGER REFERENCES ctime_dirs (pkey) NOT NULL,
                 ino INTEGER NOT NULL,
                 expire INTEGER NOT NULL,
                 ctime INTEGER NOT NULL,
                 oid BLOB NOT NULL)"#,
-            r#"CREATE INDEX ctime_cache_pkey ON ctime_cache(pkey)"#,
-            ],
-        compats: &[
-            sql::SchemaCompat {
-                version: "1:2014-03-13",
-                inabilities: &[ PoolInabilities::NoFilesystems, PoolInabilities::NoCTimeCache ]
-            } ],
-    };
-
+              r#"CREATE INDEX ctime_cache_pkey ON ctime_cache(pkey)"#],
+    compats: &[sql::SchemaCompat {
+                   version: "1:2014-03-13",
+                   inabilities: &[PoolInabilities::NoFilesystems, PoolInabilities::NoCTimeCache],
+               }],
+};

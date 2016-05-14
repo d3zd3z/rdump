@@ -63,7 +63,8 @@ impl ChunkSink for RamPool {
             kind: chunk.kind(),
             data: chunk.data().to_vec(),
         };
-        self.chunks.entry(id)
+        self.chunks
+            .entry(id)
             .or_insert(payload);
         Ok(())
     }
