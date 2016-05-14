@@ -66,18 +66,17 @@ impl Write {
         }
 
         self.buf_mut().extend(oid.0.iter().map(|&x| x));
-        /*
-        unsafe {
-            use std::ptr;
-            use std::mem;
-
-            let mut b = self.buf_mut();
-            let mut blen = b.len();
-            b.set_len(blen + Oid::size());
-            let dest = mem::transmute(&mut b[blen]);
-            ptr::copy(oid as *const Oid, dest, 1);
-        }
-        */
+        // unsafe {
+        // use std::ptr;
+        // use std::mem;
+        //
+        // let mut b = self.buf_mut();
+        // let mut blen = b.len();
+        // b.set_len(blen + Oid::size());
+        // let dest = mem::transmute(&mut b[blen]);
+        // ptr::copy(oid as *const Oid, dest, 1);
+        // }
+        //
         Ok(())
     }
 
@@ -115,7 +114,9 @@ impl Write {
 
     // Finalize everything.
     pub fn finish(mut self, sink: &mut ChunkSink) -> Result<Oid> {
-        trace!("Running finish: {} levels, l={}", self.buffers.len(), self.level);
+        trace!("Running finish: {} levels, l={}",
+               self.buffers.len(),
+               self.level);
         if self.buffers.is_empty() {
             // TODO: Make this more general.
             let ch = Chunk::new_plain(Kind::new("NULL").unwrap(), vec![]);
@@ -139,7 +140,7 @@ impl Write {
 
     // Get the last buffer.
     fn buf(&self) -> &Vec<u8> {
-        &self.buffers[self.buffers.len()-1]
+        &self.buffers[self.buffers.len() - 1]
     }
 
     fn buf_mut(&mut self) -> &mut Vec<u8> {

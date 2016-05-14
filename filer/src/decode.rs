@@ -21,10 +21,10 @@ pub fn decode(chunk: Chunk) -> cas::Result<Node> {
         let data = chunk.into_bytes();
         let size = data.len() / Oid::size();
         let mut children = Vec::with_capacity(size);
-        for i in 0 .. size {
+        for i in 0..size {
             let a = i * Oid::size();
             let b = a + Oid::size();
-            children.push(Oid::from_raw(&data[a .. b]));
+            children.push(Oid::from_raw(&data[a..b]));
         }
         return Ok(Node::Indirect {
             level: (kind.as_bytes()[3] as usize) - ('0' as usize),
