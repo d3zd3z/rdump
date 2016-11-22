@@ -1,5 +1,5 @@
-/// ! A PairIndex combines a FileIndex with a RamIndex to allow in-memory
-/// updates to file data, that can then be written out.
+//! A PairIndex combines a FileIndex with a RamIndex to allow in-memory
+//! updates to file data, that can then be written out.
 
 use Kind;
 use Oid;

@@ -1,4 +1,4 @@
-/// ! A FileIndex is a file-based mapping of hashes to IndexInfo.
+//! A FileIndex is a file-based mapping of hashes to IndexInfo.
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use Error;

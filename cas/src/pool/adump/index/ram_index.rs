@@ -1,4 +1,4 @@
-/// ! A `RamIndex` is a purely memory-based index mapping hashes to IndexInfo.
+//! A `RamIndex` is a purely memory-based index mapping hashes to IndexInfo.
 
 use Kind;
 use Oid;
