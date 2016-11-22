@@ -1,5 +1,5 @@
-///! A PairIndex combines a FileIndex with a RamIndex to allow in-memory
-///updates to file data, that can then be written out.
+/// ! A PairIndex combines a FileIndex with a RamIndex to allow in-memory
+/// updates to file data, that can then be written out.
 
 use Kind;
 use Oid;
@@ -43,12 +43,12 @@ impl PairIndex {
 
 impl Index for PairIndex {
     fn contains_key(&self, key: &Oid) -> bool {
-        self.ram.contains_key(key) ||
-            self.file.contains_key(key)
+        self.ram.contains_key(key) || self.file.contains_key(key)
     }
 
     fn get(&self, key: &Oid) -> Option<IndexInfo> {
-        self.ram.get(key)
+        self.ram
+            .get(key)
             .or_else(|| self.file.get(key))
     }
 }

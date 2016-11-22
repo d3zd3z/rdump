@@ -9,7 +9,7 @@ struct Dumper {
     hex: String,
     ascii: String,
     count: usize,
-    total_count: usize
+    total_count: usize,
 }
 
 impl Dumper {
@@ -18,7 +18,7 @@ impl Dumper {
             hex: String::with_capacity(49),
             ascii: String::with_capacity(16),
             count: 0,
-            total_count: 0
+            total_count: 0,
         }
     }
 
@@ -30,12 +30,11 @@ impl Dumper {
             self.hex.push(' ');
         }
         self.hex.push_str(&format!(" {:02x}", ch)[..]);
-        self.ascii.push(
-            if ch >= ' ' as u8 && ch <= '~' as u8 {
-                ch as char
-            } else {
-                '.'
-            });
+        self.ascii.push(if ch >= ' ' as u8 && ch <= '~' as u8 {
+            ch as char
+        } else {
+            '.'
+        });
         self.count += 1;
     }
 

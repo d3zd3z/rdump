@@ -53,11 +53,14 @@ impl AdumpPool {
             let fd = File::open(&meta.join("props.txt"))?;
             pfile::parse(fd)?
         };
-        let uuid = props.get("uuid").ok_or_else(|| Error::PropertyError("No uuid property".to_owned()))?;
+        let uuid = props.get("uuid")
+            .ok_or_else(|| Error::PropertyError("No uuid property".to_owned()))?;
         let uuid = Uuid::parse_str(&uuid)?;
-        let newfile = props.get("newfile").ok_or_else(|| Error::PropertyError("No newfile property".to_owned()))?;
+        let newfile = props.get("newfile")
+            .ok_or_else(|| Error::PropertyError("No newfile property".to_owned()))?;
         let newfile = newfile.parse::<bool>()?;
-        let limit = props.get("limit").ok_or_else(|| Error::PropertyError("No limit property".to_owned()))?;
+        let limit = props.get("limit")
+            .ok_or_else(|| Error::PropertyError("No limit property".to_owned()))?;
         let limit = limit.parse::<u32>()?;
 
         let (cfiles, next_file) = scan_backups(&base)?;
@@ -77,7 +80,7 @@ impl AdumpPool {
     fn needs_new_file(&self, size: u32) -> bool {
         // If we're configured in newfile mode, always write the new file.
         if self.newfile && !self.dirty {
-            return true
+            return true;
         }
 
         match self.cfiles.borrow().last() {
@@ -103,7 +106,7 @@ impl ChunkSource for AdumpPool {
         let mut cfiles = self.cfiles.borrow_mut();
         for cf in cfiles.iter_mut() {
             if cf.contains_key(key) {
-                return Ok(true)
+                return Ok(true);
             }
         }
         Ok(false)
@@ -251,17 +254,17 @@ fn scan_backups(base: &Path) -> Result<(Vec<ChunkFile>, u32)> {
         let name = ent.path();
         if match name.extension().and_then(|x| x.to_str()) {
             Some(ext) if ext == "data" => true,
-            _ => false
+            _ => false,
         } {
-            match name.file_name().and_then(|x| x.to_str())
-                .and_then(|x| reg.captures(x))
-            {
+            match name.file_name()
+                .and_then(|x| x.to_str())
+                .and_then(|x| reg.captures(x)) {
                 Some(cap) => {
                     let num = cap.at(1).unwrap().parse::<u32>().unwrap() + 1;
                     if num > next_file {
                         next_file = num;
                     }
-                },
+                }
                 None => (),
             }
             bpaths.push(name);
@@ -345,7 +348,7 @@ impl ChunkFile {
                 fd.seek(SeekFrom::Start(info.offset as u64))?;
                 let ch = fd.read_chunk()?;
                 Ok(Some(ch))
-            },
+            }
         }
     }
 
@@ -388,7 +391,7 @@ impl ChunkFile {
                 let file = File::open(&self.name)?;
                 self.buf = ReadWriter::Read(BufReader::new(file));
                 return self.read();
-            },
+            }
             ReadWriter::Read(ref mut rd) => return Ok(rd),
             ReadWriter::Write(_) => (),
         }
@@ -407,7 +410,8 @@ impl ChunkFile {
                     // Unfortunately, the error can't be recovered, only by
                     // reference, so just return a general error as a
                     // string.
-                    return Err(Error::CorruptPool(format!("error flushing buffer: {:?}", e.error())));
+                    return Err(Error::CorruptPool(format!("error flushing buffer: {:?}",
+                                                          e.error())));
                 }
             }
         } else {
@@ -438,9 +442,10 @@ impl ChunkFile {
             self.buf = ReadWriter::None;
 
             // And open a fresh descriptor for writing.
-            let fd = OpenOptions::new()
-                          .read(true).write(true).append(true)
-                          .open(&self.name)?;
+            let fd = OpenOptions::new().read(true)
+                .write(true)
+                .append(true)
+                .open(&self.name)?;
             self.buf = ReadWriter::Write(BufWriter::new(fd));
         }
         self.write()
@@ -508,7 +513,7 @@ mod test {
             let mut pool = AdumpPool::open(&name).unwrap();
             assert_eq!(pool.backups().unwrap().len(), 0);
 
-            for _ in 1 .. 1000 {
+            for _ in 1..1000 {
                 tr.add(&mut pool);
             }
             pool.flush().unwrap();
@@ -519,11 +524,11 @@ mod test {
         {
             let mut pool = AdumpPool::open(&name).unwrap();
             tr.check(&pool);
-            for _ in 1 .. 500 {
+            for _ in 1..500 {
                 tr.add(&mut pool);
             }
             tr.check(&pool);
-            for _ in 1 .. 500 {
+            for _ in 1..500 {
                 tr.add(&mut pool);
             }
             pool.flush().unwrap();

@@ -27,7 +27,8 @@ impl Debug for Oid {
 // Simple binding to the crypto library from OpenSSL.
 mod openssl {
     use libc::{c_int, c_uint, c_uchar, c_void, size_t, uint32_t};
-    #[cfg(test)] use std::mem;
+    #[cfg(test)]
+    use std::mem;
 
     // Despite the type name in the SSL header, these are expected to all
     // be 32-bit values.
@@ -45,7 +46,7 @@ mod openssl {
     }
 
     #[link(name = "crypto")]
-    extern {
+    extern "C" {
         pub fn SHA1_Init(c: *mut ShaCtx) -> c_int;
         pub fn SHA1_Update(c: *mut ShaCtx, data: *const c_void, len: size_t) -> c_int;
         pub fn SHA1_Final(md: *mut c_uchar, c: *mut ShaCtx) -> c_int;
@@ -102,7 +103,7 @@ impl Oid {
 
     pub fn from_hex(text: &str) -> Option<Oid> {
         if text.len() != 40 {
-            return None
+            return None;
         }
 
         text.from_hex().ok().map(|x| Oid::from_raw(&x[..]))
@@ -134,7 +135,9 @@ impl Oid {
     }
 
     // Simple accessor to get the size.
-    pub fn size() -> usize { 20 }
+    pub fn size() -> usize {
+        20
+    }
 }
 
 // Allow the Oid to be indexed to access the bytes.

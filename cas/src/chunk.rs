@@ -43,7 +43,7 @@ impl Chunk {
     /// chunk.  The `data_len` must match the size of the 'zdata' when
     /// it is decompressed, and the `oid` must match the SHA1 hash, per
     /// the style of chunks described above.
-    pub fn new_compressed(kind: Kind, oid: Oid, zdata: Vec<u8>, data_len:u32) -> Chunk {
+    pub fn new_compressed(kind: Kind, oid: Oid, zdata: Vec<u8>, data_len: u32) -> Chunk {
         Chunk {
             kind: kind,
             oid: oid,
@@ -168,7 +168,7 @@ impl<'b> Deref for Data<'b> {
                     Compressed::Compressed(ref p) => &p[..],
                     _ => unreachable!(),
                 }
-            },
+            }
             Data::VecCell(ref v) => {
                 match **v {
                     Some(ref p) => &p[..],
@@ -201,8 +201,10 @@ mod test {
                 }
 
                 // Make a new chunk out of the compressed data.
-                let c2 = Chunk::new_compressed(c1.kind(), c1.oid().clone(),
-                    comp[..].to_vec(), c1.data_len());
+                let c2 = Chunk::new_compressed(c1.kind(),
+                                               c1.oid().clone(),
+                                               comp[..].to_vec(),
+                                               c1.data_len());
                 assert_eq!(c1.kind(), c2.kind());
                 assert_eq!(c1.oid(), c2.oid());
 

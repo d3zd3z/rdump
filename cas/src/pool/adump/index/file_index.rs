@@ -1,4 +1,4 @@
-///! A FileIndex is a file-based mapping of hashes to IndexInfo.
+/// ! A FileIndex is a file-based mapping of hashes to IndexInfo.
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use Error;
@@ -55,7 +55,7 @@ impl FileIndex {
         // and should be regenerated.
 
         let mut top = Vec::with_capacity(256);
-        for _ in 0 .. 256 {
+        for _ in 0..256 {
             top.push(rd.read_u32::<LittleEndian>()?);
         }
 
@@ -63,19 +63,19 @@ impl FileIndex {
 
         let mut oid_buf = vec![0u8; 20];
         let mut oids = Vec::with_capacity(size);
-        for _ in 0 .. size {
+        for _ in 0..size {
             rd.read_exact(&mut oid_buf)?;
             oids.push(Oid::from_raw(&oid_buf));
         }
 
         let mut offsets = Vec::with_capacity(size);
-        for _ in 0 .. size {
+        for _ in 0..size {
             offsets.push(rd.read_u32::<LittleEndian>()?);
         }
 
         let kind_count = rd.read_u32::<LittleEndian>()? as usize;
         let mut kind_names = Vec::with_capacity(size);
-        for _ in 0 .. kind_count {
+        for _ in 0..kind_count {
             let mut kind_buf = vec![0u8; 4];
             rd.read_exact(&mut kind_buf)?;
             let text = String::from_utf8(kind_buf)?;
@@ -107,7 +107,7 @@ impl FileIndex {
 
     /// Save an index from something that can be iterated over.
     pub fn save<'a, P: AsRef<Path>, I>(path: P, size: u32, index: I) -> Result<()>
-        where I: IntoIterator<Item=IterItem<'a>>
+        where I: IntoIterator<Item = IterItem<'a>>
     {
         let mut nodes: Vec<IterItem<'a>> = index.into_iter().collect();
         nodes.sort_by_key(|n| n.oid);
@@ -249,7 +249,7 @@ fn compute_top<'a>(nodes: &[IterItem<'a>]) -> Vec<u32> {
     let mut top = Vec::with_capacity(256);
 
     let mut iter = nodes.iter().enumerate().peekable();
-    for first in 0 .. 256 {
+    for first in 0..256 {
         // Scan until we hit a value that is too large.
         loop {
             match iter.peek() {
@@ -259,7 +259,7 @@ fn compute_top<'a>(nodes: &[IterItem<'a>]) -> Vec<u32> {
                         break;
                     }
                     iter.next();
-                },
+                }
             }
         }
         let index = match iter.peek() {
@@ -273,8 +273,7 @@ fn compute_top<'a>(nodes: &[IterItem<'a>]) -> Vec<u32> {
 
 // Given a filename, generate another with a ".tmp" suffix, if possible.
 fn tmpify(path: &Path) -> Result<PathBuf> {
-    let base = path
-        .file_name()
+    let base = path.file_name()
         .ok_or_else(|| Error::PathError(format!("path does not have a filename {:?}", path)));
     let base = base?;
 
@@ -285,4 +284,3 @@ fn tmpify(path: &Path) -> Result<PathBuf> {
     let tmp = format!("{}.tmp", base);
     Ok(path.with_file_name(&tmp))
 }
-

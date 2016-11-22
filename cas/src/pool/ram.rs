@@ -66,7 +66,9 @@ impl ChunkSource for RamPool {
             kind: chunk.kind(),
             data: chunk.data().to_vec(),
         };
-        self.chunks.borrow_mut().entry(id)
+        self.chunks
+            .borrow_mut()
+            .entry(id)
             .or_insert(payload);
         Ok(())
     }

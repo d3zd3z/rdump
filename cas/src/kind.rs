@@ -75,7 +75,7 @@ mod test {
     #[test]
     fn test_bytes() {
         assert_eq!(Kind::new("blob").unwrap().bytes(),
-            &[0x62, 0x6c, 0x6f, 0x62]);
+                   &[0x62, 0x6c, 0x6f, 0x62]);
     }
 
     #[test]
@@ -92,6 +92,7 @@ mod test {
         let mut wr = Cursor::new(text);
         let k = Kind::new("blob").unwrap();
         write!(wr, "{:?}", k).unwrap();
-        assert_eq!(String::from_utf8(wr.into_inner()).unwrap(), "Kind(\"blob\")");
+        assert_eq!(String::from_utf8(wr.into_inner()).unwrap(),
+                   "Kind(\"blob\")");
     }
 }

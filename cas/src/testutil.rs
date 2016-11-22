@@ -10,17 +10,14 @@ use kind::Kind;
 
 // A short list of words to help generate reasonably compressible
 // data.
-static WORD_LIST: &'static [&'static str] = &[
-  "the", "be", "to", "of", "and", "a", "in", "that", "have", "I",
-  "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
-  "this", "but", "his", "by", "from", "they", "we", "say", "her",
-  "she", "or", "an", "will", "my", "one", "all", "would", "there",
-  "their", "what", "so", "up", "out", "if", "about", "who", "get",
-  "which", "go", "me", "when", "make", "can", "like", "time", "no",
-  "just", "him", "know", "take", "person", "into", "year", "your",
-  "good", "some", "could", "them", "see", "other", "than", "then",
-  "now", "look", "only", "come", "its", "over", "think", "also"
-];
+static WORD_LIST: &'static [&'static str] =
+    &["the", "be", "to", "of", "and", "a", "in", "that", "have", "I", "it", "for", "not", "on",
+      "with", "he", "as", "you", "do", "at", "this", "but", "his", "by", "from", "they", "we",
+      "say", "her", "she", "or", "an", "will", "my", "one", "all", "would", "there", "their",
+      "what", "so", "up", "out", "if", "about", "who", "get", "which", "go", "me", "when", "make",
+      "can", "like", "time", "no", "just", "him", "know", "take", "person", "into", "year",
+      "your", "good", "some", "could", "them", "see", "other", "than", "then", "now", "look",
+      "only", "come", "its", "over", "think", "also"];
 
 // Construct a random string of a given size and index.
 pub fn make_random_string(size: u32, index: u32) -> String {
@@ -42,7 +39,8 @@ pub fn make_random_string(size: u32, index: u32) -> String {
 
 // Make a random chunk.
 pub fn make_random_chunk(size: u32, index: u32) -> Chunk {
-    Chunk::new_plain(Kind::new("blob").unwrap(), make_random_string(size, index).into_bytes())
+    Chunk::new_plain(Kind::new("blob").unwrap(),
+                     make_random_string(size, index).into_bytes())
 }
 
 pub fn make_kinded_random_chunk(kind: Kind, size: u32, index: u32) -> Chunk {
@@ -58,11 +56,11 @@ pub fn make_uncompressible_chunk(size: u32, index: u32) -> Chunk {
     let mut gen: XorShiftRng = SeedableRng::from_seed([index, 0, 0, 0]);
 
     gen.fill_bytes(&mut buf);
-    /* {
-        use pdump::HexDump;
-        println!("Buf of {:x} bytes", size);
-        buf.dump();
-    } */
+    // {
+    // use pdump::HexDump;
+    // println!("Buf of {:x} bytes", size);
+    // buf.dump();
+    // }
     Chunk::new_plain(Kind::new("unco").unwrap(), buf)
 }
 
@@ -71,7 +69,7 @@ pub fn make_uncompressible_chunk(size: u32, index: u32) -> Chunk {
 pub fn boundary_sizes() -> Vec<u32> {
     let mut nums: BTreeSet<u32> = BTreeSet::new();
 
-    for i in 0 .. 19 {
+    for i in 0..19 {
         let bit = 1 << i;
         if bit > 0 {
             nums.insert(bit - 1);
@@ -85,7 +83,7 @@ pub fn boundary_sizes() -> Vec<u32> {
 
 // Simple random number generator.
 struct SimpleRandom {
-    state: u32
+    state: u32,
 }
 
 impl SimpleRandom {
@@ -130,17 +128,16 @@ mod test {
         }
     }
 
-    /*
-    #[bench]
-    fn large_strings(b: &mut Bencher) {
-        b.iter(|| make_random_string(256 * 1024, 256));
-    }
-
-    #[bench]
-    fn small_strings(b: &mut Bencher) {
-        b.iter(|| make_random_string(32, 32));
-    }
-    */
+    // #[bench]
+    // fn large_strings(b: &mut Bencher) {
+    // b.iter(|| make_random_string(256 * 1024, 256));
+    // }
+    //
+    // #[bench]
+    // fn small_strings(b: &mut Bencher) {
+    // b.iter(|| make_random_string(32, 32));
+    // }
+    //
 
     #[test]
     fn test_boundaries() {
@@ -172,7 +169,7 @@ mod test {
         // Make sure it goes away when the TempDir goes out of scope.
         match fs::metadata(&path) {
             Ok(_) => panic!("Directory should have been removed"),
-            Err(_) => ()
+            Err(_) => (),
         };
     }
 }
