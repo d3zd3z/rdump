@@ -23,7 +23,7 @@ impl Kind {
         }
 
         let mut rd = Cursor::new(text.as_bytes());
-        Ok(Kind(try!(rd.read_u32::<LittleEndian>())))
+        Ok(Kind(rd.read_u32::<LittleEndian>()?))
     }
 
     // Get the kind back as bytes.

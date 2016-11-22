@@ -31,21 +31,21 @@ impl FileIndex {
     /// Try loading the given named index file, returning it if it is
     /// valid.
     pub fn load<P: AsRef<Path>>(path: P, size: u32) -> Result<FileIndex> {
-        let f = try!(File::open(path));
+        let f = File::open(path)?;
         let mut rd = BufReader::new(f);
 
         let mut magic = vec![0u8; 8];
-        try!(rd.read_exact(&mut magic));
+        rd.read_exact(&mut magic)?;
         if magic != b"ldumpidx" {
             return Err(Error::InvalidIndex("bad magic".to_owned()));
         }
 
-        let version = try!(rd.read_u32::<LittleEndian>());
+        let version = rd.read_u32::<LittleEndian>()?;
         if version != 4 {
             return Err(Error::InvalidIndex("Version mismatch".to_owned()));
         }
 
-        let file_size = try!(rd.read_u32::<LittleEndian>());
+        let file_size = rd.read_u32::<LittleEndian>()?;
         if file_size != size {
             return Err(Error::InvalidIndex("Index size mismatch".to_owned()));
         }
@@ -56,7 +56,7 @@ impl FileIndex {
 
         let mut top = Vec::with_capacity(256);
         for _ in 0 .. 256 {
-            top.push(try!(rd.read_u32::<LittleEndian>()));
+            top.push(rd.read_u32::<LittleEndian>()?);
         }
 
         let size = *top.last().unwrap() as usize;
@@ -64,26 +64,26 @@ impl FileIndex {
         let mut oid_buf = vec![0u8; 20];
         let mut oids = Vec::with_capacity(size);
         for _ in 0 .. size {
-            try!(rd.read_exact(&mut oid_buf));
+            rd.read_exact(&mut oid_buf)?;
             oids.push(Oid::from_raw(&oid_buf));
         }
 
         let mut offsets = Vec::with_capacity(size);
         for _ in 0 .. size {
-            offsets.push(try!(rd.read_u32::<LittleEndian>()));
+            offsets.push(rd.read_u32::<LittleEndian>()?);
         }
 
-        let kind_count = try!(rd.read_u32::<LittleEndian>()) as usize;
+        let kind_count = rd.read_u32::<LittleEndian>()? as usize;
         let mut kind_names = Vec::with_capacity(size);
         for _ in 0 .. kind_count {
             let mut kind_buf = vec![0u8; 4];
-            try!(rd.read_exact(&mut kind_buf));
-            let text = try!(String::from_utf8(kind_buf));
-            kind_names.push(try!(Kind::new(&text)));
+            rd.read_exact(&mut kind_buf)?;
+            let text = String::from_utf8(kind_buf)?;
+            kind_names.push(Kind::new(&text)?);
         }
 
         let mut kinds = vec![0u8; size];
-        try!(rd.read_exact(&mut kinds));
+        rd.read_exact(&mut kinds)?;
 
         Ok(FileIndex {
             top: top,
@@ -113,30 +113,30 @@ impl FileIndex {
         nodes.sort_by_key(|n| n.oid);
         let nodes = nodes;
 
-        let tmp_name = try!(tmpify(path.as_ref()));
+        let tmp_name = tmpify(path.as_ref())?;
         println!("tmp: {:?} -> {:?}", tmp_name, path.as_ref());
         {
-            let ofd = try!(File::create(&tmp_name));
+            let ofd = File::create(&tmp_name)?;
             let mut ofd = BufWriter::new(ofd);
 
-            try!(ofd.write_all(b"ldumpidx"));
-            try!(ofd.write_u32::<LittleEndian>(4));
-            try!(ofd.write_u32::<LittleEndian>(size));
+            ofd.write_all(b"ldumpidx")?;
+            ofd.write_u32::<LittleEndian>(4)?;
+            ofd.write_u32::<LittleEndian>(size)?;
 
             // Write the top-level index.
             let top = compute_top(&nodes);
             for elt in top {
-                try!(ofd.write_u32::<LittleEndian>(elt));
+                ofd.write_u32::<LittleEndian>(elt)?;
             }
 
             // Write out the hashes themselves.
             for n in &nodes {
-                try!(ofd.write_all(&n.oid.0));
+                ofd.write_all(&n.oid.0)?;
             }
 
             // Write out the offset table.
             for n in &nodes {
-                try!(ofd.write_u32::<LittleEndian>(n.offset));
+                ofd.write_u32::<LittleEndian>(n.offset)?;
             }
 
             // Compute the kind map.
@@ -150,9 +150,9 @@ impl FileIndex {
             }
 
             // Write out the kind map itself.
-            try!(ofd.write_u32::<LittleEndian>(kinds.len() as u32));
+            ofd.write_u32::<LittleEndian>(kinds.len() as u32)?;
             for &k in &kinds {
-                try!(ofd.write_u32::<LittleEndian>(k.0));
+                ofd.write_u32::<LittleEndian>(k.0)?;
             }
 
             // Then write out the values.
@@ -160,12 +160,12 @@ impl FileIndex {
             for n in &nodes {
                 buf.push(kind_map[&n.kind] as u8);
             }
-            try!(ofd.write_all(&buf));
+            ofd.write_all(&buf)?;
         }
 
         // It worked, so do the atomic rename/overwrite.  'std' tries to do
         // this sane behavior on Windows as well.
-        try!(fs::rename(tmp_name, path.as_ref()));
+        fs::rename(tmp_name, path.as_ref())?;
 
         Ok(())
     }
@@ -276,11 +276,11 @@ fn tmpify(path: &Path) -> Result<PathBuf> {
     let base = path
         .file_name()
         .ok_or_else(|| Error::PathError(format!("path does not have a filename {:?}", path)));
-    let base = try!(base);
+    let base = base?;
 
     let base = base.to_str()
         .ok_or_else(|| Error::PathError(format!("path isn't valid UTF-8 {:?}", path)));
-    let base = try!(base);
+    let base = base?;
 
     let tmp = format!("{}.tmp", base);
     Ok(path.with_file_name(&tmp))

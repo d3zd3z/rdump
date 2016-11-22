@@ -33,19 +33,19 @@ impl<T: Write> ChunkWrite for T {
         };
 
         let mut header = Vec::with_capacity(48);
-        try!(header.write_all(b"adump-pool-v1.1\n"));
-        try!(header.write_u32::<LittleEndian>(clen));
-        try!(header.write_u32::<LittleEndian>(ulen));
-        try!(header.write_all(&chunk.kind().bytes()));
-        try!(header.write_all(&chunk.oid().0));
+        header.write_all(b"adump-pool-v1.1\n")?;
+        header.write_u32::<LittleEndian>(clen)?;
+        header.write_u32::<LittleEndian>(ulen)?;
+        header.write_all(&chunk.kind().bytes())?;
+        header.write_all(&chunk.oid().0)?;
 
-        try!(self.write_all(&header));
-        try!(self.write_all(&payload));
+        self.write_all(&header)?;
+        self.write_all(&payload)?;
 
         let pad_len = 15 & ((-(clen as i32)) as u32);
         if pad_len > 0 {
             let pad = vec![0; pad_len as usize];
-            try!(self.write_all(&pad));
+            self.write_all(&pad)?;
         }
         Ok(())
     }
@@ -59,36 +59,36 @@ pub trait ChunkRead {
 impl<T: Read> ChunkRead for T {
     fn read_chunk(&mut self) -> Result<Chunk> {
         let mut header = vec![0u8; 48];
-        try!(self.read_exact(&mut header));
+        self.read_exact(&mut header)?;
 
         let mut header = &header[..];
 
         let mut magic = vec![0u8; 16];
-        try!(header.read_exact(&mut magic));
+        header.read_exact(&mut magic)?;
         if magic != b"adump-pool-v1.1\n" {
             return Err(Error::CorruptChunk("Invalid magic".to_owned()));
         }
-        let clen = try!(header.read_u32::<LittleEndian>());
-        let ulen = try!(header.read_u32::<LittleEndian>());
+        let clen = header.read_u32::<LittleEndian>()?;
+        let ulen = header.read_u32::<LittleEndian>()?;
 
         let mut kind = vec![0u8; 4];
-        try!(header.read_exact(&mut kind));
-        let kind = try!(String::from_utf8(kind));
-        let kind = try!(Kind::new(&kind));
+        header.read_exact(&mut kind)?;
+        let kind = String::from_utf8(kind)?;
+        let kind = Kind::new(&kind)?;
 
         let mut oid = vec![0u8; 20];
-        try!(header.read_exact(&mut oid));
+        header.read_exact(&mut oid)?;
         let oid = Oid::from_raw(&oid);
 
         let mut payload = vec![0u8; clen as usize];
         if clen > 0 {
-            try!(self.read_exact(&mut payload));
+            self.read_exact(&mut payload)?;
         }
 
         let pad_len = 15 & ((-(clen as i32)) as u32);
         if pad_len > 0 {
             let mut pad = vec![0; pad_len as usize];
-            try!(self.read_exact(&mut pad));
+            self.read_exact(&mut pad)?;
         }
 
         if ulen == 0xFFFF_FFFF {

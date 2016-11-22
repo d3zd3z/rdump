@@ -50,17 +50,17 @@ impl AdumpPool {
         let meta = base.join("metadata");
 
         let props = {
-            let fd = try!(File::open(&meta.join("props.txt")));
-            try!(pfile::parse(fd))
+            let fd = File::open(&meta.join("props.txt"))?;
+            pfile::parse(fd)?
         };
-        let uuid = try!(props.get("uuid").ok_or_else(|| Error::PropertyError("No uuid property".to_owned())));
-        let uuid = try!(Uuid::parse_str(&uuid));
-        let newfile = try!(props.get("newfile").ok_or_else(|| Error::PropertyError("No newfile property".to_owned())));
-        let newfile = try!(newfile.parse::<bool>());
-        let limit = try!(props.get("limit").ok_or_else(|| Error::PropertyError("No limit property".to_owned())));
-        let limit = try!(limit.parse::<u32>());
+        let uuid = props.get("uuid").ok_or_else(|| Error::PropertyError("No uuid property".to_owned()))?;
+        let uuid = Uuid::parse_str(&uuid)?;
+        let newfile = props.get("newfile").ok_or_else(|| Error::PropertyError("No newfile property".to_owned()))?;
+        let newfile = newfile.parse::<bool>()?;
+        let limit = props.get("limit").ok_or_else(|| Error::PropertyError("No limit property".to_owned()))?;
+        let limit = limit.parse::<u32>()?;
 
-        let (cfiles, next_file) = try!(scan_backups(&base));
+        let (cfiles, next_file) = scan_backups(&base)?;
 
         Ok(AdumpPool {
             base: base,
@@ -91,7 +91,7 @@ impl ChunkSource for AdumpPool {
     fn find(&self, key: &Oid) -> Result<Chunk> {
         let mut cfiles = self.cfiles.borrow_mut();
         for cf in cfiles.iter_mut() {
-            match try!(cf.find(key)) {
+            match cf.find(key)? {
                 None => (),
                 Some(chunk) => return Ok(chunk),
             }
@@ -140,7 +140,7 @@ impl ChunkSource for AdumpPool {
             self.next_file += 1;
 
             println!("Needs new file: {:?}", name);
-            self.cfiles.borrow_mut().push(try!(ChunkFile::create(name)));
+            self.cfiles.borrow_mut().push(ChunkFile::create(name)?);
         }
 
         let mut cfiles = self.cfiles.borrow_mut();
@@ -199,21 +199,21 @@ impl<P: AsRef<Path>> PoolBuilder<P> {
         // The given directory must represent either an empty directory, or
         // a path that a new directory can be created at.
         let base = self.dir.as_ref();
-        try!(ensure_dir(base));
+        ensure_dir(base)?;
         let meta = base.join("metadata");
         let seen = base.join("seen");
 
-        try!(fs::create_dir(&meta));
-        try!(fs::create_dir(&seen));
+        fs::create_dir(&meta)?;
+        fs::create_dir(&seen)?;
 
         {
-            let mut fd = try!(File::create(meta.join("props.txt")));
-            try!(writeln!(&mut fd, "uuid={}", Uuid::new_v4().hyphenated()));
-            try!(writeln!(&mut fd, "newfile={}", self.newfile));
-            try!(writeln!(&mut fd, "limit={}", self.limit));
+            let mut fd = File::create(meta.join("props.txt"))?;
+            writeln!(&mut fd, "uuid={}", Uuid::new_v4().hyphenated())?;
+            writeln!(&mut fd, "newfile={}", self.newfile)?;
+            writeln!(&mut fd, "limit={}", self.limit)?;
         }
 
-        try!(File::create(meta.join("backups.txt")));
+        File::create(meta.join("backups.txt"))?;
 
         Ok(())
     }
@@ -226,13 +226,13 @@ impl<P: AsRef<Path>> PoolBuilder<P> {
 fn ensure_dir(base: &Path) -> Result<()> {
     if base.is_dir() {
         // An existing directory is allowed, if it is completely empty.
-        for ent in try!(base.read_dir()) {
-            let _ = try!(ent);
+        for ent in base.read_dir()? {
+            let _ = ent?;
             return Err(Error::PathError(format!("Directory is not empty: {:?}", base)));
         }
     } else {
         // If not a directory, see if we can create one.
-        try!(fs::create_dir(base));
+        fs::create_dir(base)?;
     }
     Ok(())
 }
@@ -246,8 +246,8 @@ fn scan_backups(base: &Path) -> Result<(Vec<ChunkFile>, u32)> {
 
     // We'll consider every file in the pool directory that ends in '.data'
     // to be a pool file.
-    for ent in try!(base.read_dir()) {
-        let ent = try!(ent);
+    for ent in base.read_dir()? {
+        let ent = ent?;
         let name = ent.path();
         if match name.extension().and_then(|x| x.to_str()) {
             Some(ext) if ext == "data" => true,
@@ -294,7 +294,7 @@ enum ReadWriter {
 
 impl ChunkFile {
     fn open(p: PathBuf) -> Result<ChunkFile> {
-        let m = try!(p.metadata());
+        let m = p.metadata()?;
         if !m.is_file() {
             return Err(Error::CorruptPool(format!("file {:?} is not a regular file", p)));
         }
@@ -322,7 +322,7 @@ impl ChunkFile {
             panic!("Pool file shouldn't be present for creation");
         }
 
-        let fd = try!(OpenOptions::new().read(true).write(true).append(true).create(true).open(&p));
+        let fd = OpenOptions::new().read(true).write(true).append(true).create(true).open(&p)?;
         Ok(ChunkFile {
             name: p,
             index: PairIndex::empty(),
@@ -341,9 +341,9 @@ impl ChunkFile {
         match self.index.get(key) {
             None => Ok(None),
             Some(info) => {
-                let fd = try!(self.read());
-                try!(fd.seek(SeekFrom::Start(info.offset as u64)));
-                let ch = try!(fd.read_chunk());
+                let fd = self.read()?;
+                fd.seek(SeekFrom::Start(info.offset as u64))?;
+                let ch = fd.read_chunk()?;
                 Ok(Some(ch))
             },
         }
@@ -354,10 +354,10 @@ impl ChunkFile {
         let pos;
         let size;
         {
-            let fd = try!(self.write());
-            pos = try!(fd.seek(SeekFrom::End(0))) as u32;
-            try!(fd.write_chunk(chunk));
-            size = try!(fd.seek(SeekFrom::Current(0))) as u32;
+            let fd = self.write()?;
+            pos = fd.seek(SeekFrom::End(0))? as u32;
+            fd.write_chunk(chunk)?;
+            size = fd.seek(SeekFrom::Current(0))? as u32;
         }
 
         self.index.insert(chunk.oid().to_owned(), pos, chunk.kind());
@@ -368,15 +368,15 @@ impl ChunkFile {
     // Write the index out if this file is dirty.
     fn flush(&mut self) -> Result<()> {
         match self.buf {
-            ReadWriter::Write(ref mut wr) => try!(wr.flush()),
+            ReadWriter::Write(ref mut wr) => wr.flush()?,
             _ => (),
         }
 
         if self.index.is_dirty() {
             let index_name = self.name.with_extension("idx");
-            try!(self.index.save(&index_name, self.size));
+            self.index.save(&index_name, self.size)?;
 
-            mem::replace(&mut self.index, try!(PairIndex::load(&index_name, self.size)));
+            mem::replace(&mut self.index, PairIndex::load(&index_name, self.size)?);
         }
         Ok(())
     }
@@ -385,7 +385,7 @@ impl ChunkFile {
     fn read(&mut self) -> Result<&mut BufReader<File>> {
         match self.buf {
             ReadWriter::None => {
-                let file = try!(File::open(&self.name));
+                let file = File::open(&self.name)?;
                 self.buf = ReadWriter::Read(BufReader::new(file));
                 return self.read();
             },
@@ -438,9 +438,9 @@ impl ChunkFile {
             self.buf = ReadWriter::None;
 
             // And open a fresh descriptor for writing.
-            let fd = try!(OpenOptions::new()
+            let fd = OpenOptions::new()
                           .read(true).write(true).append(true)
-                          .open(&self.name));
+                          .open(&self.name)?;
             self.buf = ReadWriter::Write(BufWriter::new(fd));
         }
         self.write()

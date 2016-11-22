@@ -48,7 +48,7 @@ fn main() {
 
 fn walk_tree<P: AsRef<Path>>(pool: &mut ChunkSource, tree: P) -> Result<()> {
     let mut walk = Walker::new(pool);
-    try!(walk.walk(tree.as_ref()));
+    walk.walk(tree.as_ref())?;
     println!("Total:\n{:?}", walk.info);
     Ok(())
 }
@@ -97,7 +97,7 @@ impl<'a> Walker<'a> {
     // pools.
     fn walk(&mut self, name: &Path) -> Result<()> {
         self.pool.begin_writing()?;
-        try!(self.iwalk(name));
+        self.iwalk(name)?;
         self.pool.flush()?;
         Ok(())
     }
@@ -108,10 +108,10 @@ impl<'a> Walker<'a> {
         let mut dirs = vec![];
         let mut files = vec![];
 
-        for entry in try!(fs::read_dir(name)) {
-            let entry = try!(entry);
+        for entry in fs::read_dir(name)? {
+            let entry = entry?;
             let path = entry.path();
-            let meta = try!(fs::symlink_metadata(&path));
+            let meta = fs::symlink_metadata(&path)?;
             if meta.is_dir() {
                 dirs.push(path);
             } else if meta.is_file() {
@@ -124,12 +124,12 @@ impl<'a> Walker<'a> {
 
         // Walk deeply first.
         for dir in &dirs {
-            try!(self.iwalk(dir));
+            self.iwalk(dir)?;
         }
 
         // The process  the files at this level.
         for file in &files {
-            try!(self.encode_file(file));
+            self.encode_file(file)?;
         }
 
         self.info.dirs += 1;
@@ -139,12 +139,12 @@ impl<'a> Walker<'a> {
 
     fn encode_file(&mut self, name: &Path) -> Result<()> {
         // print!("- {:?}", name);
-        let mut f = try!(File::open(name));
+        let mut f = File::open(name)?;
 
         loop {
             let mut buffer = vec![0u8; 256 * 1024];
 
-            let count = try!(f.read(&mut buffer));
+            let count = f.read(&mut buffer)?;
             if count == 0 {
                 break;
             }
@@ -162,11 +162,11 @@ impl<'a> Walker<'a> {
             };
             self.info.bytes += payload.len() as u64;
             */
-            if try!(self.pool.contains_key(ch.oid())) {
+            if self.pool.contains_key(ch.oid())? {
                 self.info.dup_chunks += 1;
                 self.info.dup_bytes += count as u64;
             } else {
-                try!(self.pool.add(&ch));
+                self.pool.add(&ch)?;
                 self.info.chunks += 1;
                 self.info.bytes += count as u64;
             }

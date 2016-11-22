@@ -27,34 +27,34 @@ pub struct FilePool {
 impl FilePool {
     pub fn create<P: AsRef<Path>>(path: P) -> Result<()> {
         let path = path.as_ref();
-        try!(fs::create_dir(path));
-        try!(fs::create_dir(&path.join("blobs")));
-        let db = try!(SqliteConnection::open(&path.join("data.db")));
-        try!(POOL_SCHEMA.set(&db));
-        try!(POOL_SCHEMA.check(&db));
+        fs::create_dir(path)?;
+        fs::create_dir(&path.join("blobs"))?;
+        let db = SqliteConnection::open(&path.join("data.db"))?;
+        POOL_SCHEMA.set(&db)?;
+        POOL_SCHEMA.check(&db)?;
 
-        let tx = try!(db.transaction());
-        try!(db.execute("INSERT INTO props (key, value) values ('uuid', ?)",
-            &[&Uuid::new_v4().hyphenated().to_string()]));
-        try!(tx.commit());
+        let tx = db.transaction()?;
+        db.execute("INSERT INTO props (key, value) values ('uuid', ?)",
+            &[&Uuid::new_v4().hyphenated().to_string()])?;
+        tx.commit()?;
         Ok(())
     }
 
     pub fn open<P: AsRef<Path>>(path: P) -> Result<FilePool> {
         let path = path.as_ref();
-        let db = try!(SqliteConnection::open(&path.join("data.db")));
+        let db = SqliteConnection::open(&path.join("data.db"))?;
         let db = XactConnection::new(db);
 
-        let _inabilities = try!(POOL_SCHEMA.check(&db));
+        let _inabilities = POOL_SCHEMA.check(&db)?;
 
         // Retrieve the uuid.
         // TODO: Need something more robust than their query_one.
         // We should be able to handle no uuid, and probably just create
         // one.
-        let uuid: String = try!(db.query_row("SELECT value FROM props WHERE key = 'uuid'", &[],
-            |row| { row.get(0) }));
+        let uuid: String = db.query_row("SELECT value FROM props WHERE key = 'uuid'", &[],
+            |row| { row.get(0) })?;
 
-        let uuid = try!(Uuid::parse_str(&uuid));
+        let uuid = Uuid::parse_str(&uuid)?;
 
         Ok(FilePool {
             db: db,
@@ -79,9 +79,9 @@ impl FilePool {
 
     fn read_payload(&self, oid: &Oid) -> Result<Vec<u8>> {
         let (_, fname) = self.get_paths(oid);
-        let mut fd = try!(fs::File::open(&fname));
+        let mut fd = fs::File::open(&fname)?;
         let mut result = Vec::new();
-        try!(fd.read_to_end(&mut result));
+        fd.read_to_end(&mut result)?;
         Ok(result)
     }
 }
@@ -91,20 +91,20 @@ impl ChunkSource for FilePool {
         // Ideally, we could just query the data for NULL, but this doesn't
         // seem to be exposed properly.  Instead, retrieve it as a separate
         // column.
-        let mut stmt = try!(self.db.prepare(
-                "SELECT kind, size, zsize, data, data IS NULL FROM blobs WHERE oid = ?"));
-        let mut rows = try!(stmt.query(&[&&key.0[..]]));
+        let mut stmt = self.db.prepare(
+                "SELECT kind, size, zsize, data, data IS NULL FROM blobs WHERE oid = ?")?;
+        let mut rows = stmt.query(&[&&key.0[..]])?;
         match rows.next() {
             None => Err(Error::MissingChunk),
             Some(row) => {
-                let row = try!(row);
+                let row = row?;
                 let kind: String = row.get(0);
                 let kind = Kind::new(&kind).unwrap();
                 let size: i32 = row.get(1);
                 let zsize: i32 = row.get(2);
                 let null_data: i32 = row.get(4);
                 let payload: Vec<u8> = if null_data != 0 {
-                    try!(self.read_payload(key))
+                    self.read_payload(key)?
                 } else {
                     row.get(3)
                 };
@@ -124,12 +124,12 @@ impl ChunkSource for FilePool {
     }
 
     fn contains_key(&self, key: &Oid) -> Result<bool> {
-        let count: i32 = try!(self.db.query_row(
+        let count: i32 = self.db.query_row(
                 "SELECT COUNT(*) FROM blobs WHERE oid = ?",
                 &[&&key.0[..]],
                 |row| {
                     row.get(0)
-                }));
+                })?;
         Ok(count > 0)
     }
 
@@ -138,11 +138,11 @@ impl ChunkSource for FilePool {
     }
 
     fn backups(&self) -> Result<Vec<Oid>> {
-        let mut stmt = try!(self.db.prepare(
-                "SELECT oid FROM blobs WHERE kind = 'back'"));
+        let mut stmt = self.db.prepare(
+                "SELECT oid FROM blobs WHERE kind = 'back'")?;
         let mut result = Vec::new();
-        for row in try!(stmt.query(&[])) {
-            let row = try!(row);
+        for row in stmt.query(&[])? {
+            let row = row?;
             let oid: Vec<u8> = row.get(0);
             result.push(Oid::from_raw(&oid));
         }
@@ -162,14 +162,14 @@ impl ChunkSource for FilePool {
         };
 
         if payload.len() < 100000 {
-            try!(self.db.execute(
+            self.db.execute(
                     "INSERT INTO blobs (oid, kind, size, zsize, data)
                     VALUES (?, ?, ?, ?, ?)",
                     &[&&chunk.oid().0[..],
                     &chunk.kind().to_string(),
                     &(chunk.data_len() as i32),
                     &(payload.len() as i32),
-                    &&payload[..]]));
+                    &&payload[..]])?;
         } else {
             let (dir, name) = self.get_paths(chunk.oid());
 
@@ -178,20 +178,20 @@ impl ChunkSource for FilePool {
                 Ok(fd) => fd,
                 _ => {
                     // Try creating the directory, and retrying.
-                    try!(fs::create_dir(&dir));
-                    try!(fs::File::create(&name))
+                    fs::create_dir(&dir)?;
+                    fs::File::create(&name)?
                 },
             };
 
-            try!(fd.write_all(&payload[..]));
+            fd.write_all(&payload[..])?;
 
-            try!(self.db.execute(
+            self.db.execute(
                     "INSERT INTO blobs (oid, kind, size, zsize)
                      VALUES (?, ?, ?, ?)",
                     &[&&chunk.oid().0[..],
                       &chunk.kind().to_string(),
                       &(chunk.data_len() as i32),
-                      &(payload.len() as i32)]));
+                      &(payload.len() as i32)])?;
         }
 
         Ok(())

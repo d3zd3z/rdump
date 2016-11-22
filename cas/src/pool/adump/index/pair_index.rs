@@ -20,7 +20,7 @@ pub struct PairIndex {
 impl PairIndex {
     pub fn load<P: AsRef<Path>>(path: P, size: u32) -> Result<PairIndex> {
         Ok(PairIndex {
-            file: try!(FileIndex::load(path, size)),
+            file: FileIndex::load(path, size)?,
             ram: RamIndex::new(),
         })
     }

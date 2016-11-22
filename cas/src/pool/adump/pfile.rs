@@ -16,7 +16,7 @@ use std::io::{BufRead, BufReader, Read};
 pub fn parse<R: Read>(input: R) -> Result<BTreeMap<String, String>> {
     let mut result = BTreeMap::new();
     for line in BufReader::new(input).lines() {
-        let line = try!(line);
+        let line = line?;
         if line.len() == 0 || line.starts_with("#") {
             continue;
         }
