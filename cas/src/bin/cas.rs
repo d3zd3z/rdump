@@ -32,9 +32,7 @@ fn main() {
     let sec = timeit_loops!(1, {
         FilePool::create("pool1").unwrap();
         let mut pool = FilePool::open("pool1").unwrap();
-        pool.begin_writing().unwrap();
         walk_tree(&mut pool, BASE).unwrap();
-        pool.flush().unwrap();
     });
     println!("FilePool: {}", sec);
 

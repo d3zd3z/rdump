@@ -85,13 +85,6 @@ impl AdumpPool {
             Some(ref cf) => cf.size + size > self.limit,
         }
     }
-
-    pub fn flush(&mut self) -> Result<()> {
-        for cfile in self.cfiles.borrow_mut().iter_mut() {
-            try!(cfile.flush());
-        }
-        Ok(())
-    }
 }
 
 impl ChunkSource for AdumpPool {
@@ -139,7 +132,7 @@ impl ChunkSource for AdumpPool {
     }
 
     fn begin_writing(&mut self) -> Result<()> {
-        unimplemented!();
+        Ok(())
     }
 
     fn add(&mut self, chunk: &Chunk) -> Result<()> {
@@ -158,7 +151,10 @@ impl ChunkSource for AdumpPool {
     }
 
     fn flush(&mut self) -> Result<()> {
-        unimplemented!();
+        for cfile in self.cfiles.borrow_mut().iter_mut() {
+            cfile.flush()?;
+        }
+        Ok(())
     }
 }
 
