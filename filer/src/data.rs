@@ -62,7 +62,7 @@ impl<'a> DataWrite<'a> {
             match source.read(&mut buf[len..]) {
                 Ok(0) => break,
                 Ok(n) => len += n,
-                Err(ref e) if e.kind() == ErrorKind::Interrupted => {},
+                Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
                 Err(e) => return Err(From::from(e)),
             }
         }

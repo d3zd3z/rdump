@@ -14,7 +14,8 @@ use std::cell::RefCell;
 extern crate cas;
 extern crate filer;
 extern crate rand;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 
 #[test]
 fn indirection() {
@@ -64,13 +65,13 @@ impl<'a> Walker<'a> {
                 let mut temp = vec![0u8; data.len()];
                 assert_eq!(try!(self.reader.read(&mut temp)), temp.len());
                 assert_eq!(&data, &temp);
-            },
+            }
             Node::Indirect { level, children } => {
                 trace!("Indirect: {} {}", level, children.len());
                 for child in children.iter() {
                     try!(self.walk(child));
                 }
-            },
+            }
         }
         Ok(())
     }
