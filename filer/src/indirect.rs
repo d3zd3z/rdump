@@ -3,10 +3,11 @@
 #![allow(dead_code)]
 
 use Result;
-use cas::pool::ChunkSink;
+use cas::pool::ChunkSource;
 use cas::Chunk;
 use cas::Kind;
 use cas::Oid;
+use std::cell::RefCell;
 
 // Items that are larger than a single chunk are written in multiple chunks
 // and then use indirect chunks to store all of these.  The indirect chunks
@@ -32,11 +33,11 @@ pub struct Write<'a> {
     level: usize,
 
     // The sink for the data.
-    sink: &'a ChunkSink,
+    sink: &'a RefCell<ChunkSource>,
 }
 
 impl<'a> Write<'a> {
-    pub fn new<'b>(sink: &'b ChunkSink, limit: usize, prefix: String) -> Write<'b> {
+    pub fn new<'b>(sink: &'b RefCell<ChunkSource>, limit: usize, prefix: String) -> Write<'b> {
         if prefix.as_bytes().len() != 3 {
             panic!("prefix must be 3 bytes");
         }
@@ -109,7 +110,7 @@ impl<'a> Write<'a> {
             let kind = Kind::new(&format!("{}{}", self.prefix, self.level - blevel - 1)).unwrap();
             // let kind = Kind::new(&format!("{}0", self.prefix)).unwrap();
             let ch = Chunk::new_plain(kind, buf);
-            try!(self.sink.add(&ch));
+            try!(self.sink.borrow_mut().add(&ch));
 
             // TODO: Implement a move out of the oid?
             trace!("collapsed: {}", ch.oid().to_hex());
@@ -123,7 +124,7 @@ impl<'a> Write<'a> {
         if self.buffers.is_empty() {
             // TODO: Make this more general.
             let ch = Chunk::new_plain(Kind::new("NULL").unwrap(), vec![]);
-            try!(self.sink.add(&ch));
+            try!(self.sink.borrow_mut().add(&ch));
             Ok(ch.oid().clone())
         } else {
             loop {

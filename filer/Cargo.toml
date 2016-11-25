@@ -6,18 +6,18 @@ authors = [ "David Brown <davidb@davidb.org>" ]
 license = "MIT"
 
 [dependencies]
-byteorder = "0.5.1"
+byteorder = "0.5.3"
 
 # TODO: Test-only dependency
-uuid = "0.1.18"
-log = "0.3.5"
-env_logger = "0.3.2"
+uuid = "0.3.1"
+log = "0.3.6"
+env_logger = "0.3.5"
 
 [dependencies.cas]
 path = "../cas"
 
 [dev-dependencies]
-tempdir = "0.3.4"
+tempdir = "0.3.5"
 rand = "0.3.14"
 
 [[bin]]

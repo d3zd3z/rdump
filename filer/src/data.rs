@@ -4,24 +4,25 @@
 
 use Result;
 use indirect;
+use std::cell::RefCell;
 use std::io;
 use std::io::ErrorKind;
 use std::iter;
 use cas;
-use cas::pool::ChunkSink;
+use cas::pool::ChunkSource;
 use cas::{Chunk, Kind, Oid};
 
 pub struct DataWrite<'a> {
-    sink: &'a ChunkSink,
+    sink: &'a RefCell<ChunkSource>,
     limit: usize,
 }
 
 impl<'a> DataWrite<'a> {
-    pub fn new(sink: &ChunkSink) -> DataWrite {
+    pub fn new<'b>(sink: &'b RefCell<ChunkSource>) -> DataWrite<'b> {
         DataWrite::new_limit(sink, 256 * 1024)
     }
 
-    pub fn new_limit(sink: &ChunkSink, limit: usize) -> DataWrite {
+    pub fn new_limit<'b>(sink: &'b RefCell<ChunkSource>, limit: usize) -> DataWrite<'b> {
         DataWrite {
             sink: sink,
             limit: limit,
@@ -39,7 +40,7 @@ impl<'a> DataWrite<'a> {
             }
 
             let ch = Chunk::new_plain(Kind::new("blob").unwrap(), buf);
-            try!(self.sink.add(&ch));
+            try!(self.sink.borrow_mut().add(&ch));
             try!(ind.add(ch.oid()));
             // println!("write {} bytes", ch.data_len());
         }

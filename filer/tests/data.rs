@@ -9,6 +9,7 @@ use filer::data::DataWrite;
 
 use rand::isaac::IsaacRng;
 use rand::Rng;
+use std::cell::RefCell;
 
 extern crate cas;
 extern crate filer;
@@ -19,16 +20,16 @@ extern crate rand;
 fn indirection() {
     let limit = 1 * 1024 * 1024 + 136;
 
-    let mut pool = RamPool::new();
+    let mut pool = RefCell::new(RamPool::new());
     let top;
     {
-        let pw = pool.get_writer().unwrap();
+        pool.borrow_mut().begin_writing().unwrap();
         {
             let mut rd = FakeRead::new(limit);
-            let mut wr = DataWrite::new_limit(&*pw, 256 * 1024);
+            let mut wr = DataWrite::new_limit(&mut pool, 256 * 1024);
             top = wr.write(&mut rd).unwrap();
         }
-        pw.flush().unwrap();
+        pool.borrow_mut().flush().unwrap();
     }
 
     // Read it back and make sure it is ok.
@@ -40,11 +41,11 @@ fn indirection() {
 
 struct Walker<'a> {
     reader: FakeRead,
-    pool: &'a ChunkSource,
+    pool: &'a RefCell<ChunkSource>,
 }
 
 impl<'a> Walker<'a> {
-    fn new(pool: &ChunkSource, limit: usize) -> Walker {
+    fn new<'b>(pool: &'b RefCell<ChunkSource>, limit: usize) -> Walker<'b> {
         Walker {
             reader: FakeRead::new(limit),
             pool: pool,
@@ -56,7 +57,7 @@ impl<'a> Walker<'a> {
         use filer::decode::Node;
         use std::io::prelude::*;
 
-        let ch = try!(self.pool.find(oid));
+        let ch = try!(self.pool.borrow().find(oid));
         trace!("Chunk: {}", ch.oid().to_hex());
         match try!(decode(ch)) {
             Node::Blob(data) => {
