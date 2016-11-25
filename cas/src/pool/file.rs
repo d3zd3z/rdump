@@ -29,12 +29,12 @@ impl FilePool {
         let path = path.as_ref();
         fs::create_dir(path)?;
         fs::create_dir(&path.join("blobs"))?;
-        let db = SqliteConnection::open(&path.join("data.db"))?;
-        POOL_SCHEMA.set(&db)?;
+        let mut db = SqliteConnection::open(&path.join("data.db"))?;
+        POOL_SCHEMA.set(&mut db)?;
         POOL_SCHEMA.check(&db)?;
 
         let tx = db.transaction()?;
-        db.execute("INSERT INTO props (key, value) values ('uuid', ?)",
+        tx.execute("INSERT INTO props (key, value) values ('uuid', ?)",
                      &[&Uuid::new_v4().hyphenated().to_string()])?;
         tx.commit()?;
         Ok(())
@@ -139,13 +139,14 @@ impl ChunkSource for FilePool {
     fn backups(&self) -> Result<Vec<Oid>> {
         let mut stmt = self.db
             .prepare("SELECT oid FROM blobs WHERE kind = 'back'")?;
-        let mut result = Vec::new();
-        for row in stmt.query(&[])? {
-            let row = row?;
+        let mut result = vec![];
+        for oid in stmt.query_map(&[], |row| {
             let oid: Vec<u8> = row.get(0);
-            result.push(Oid::from_raw(&oid));
+            Oid::from_raw(&oid)
+        })? {
+            let oid = oid?;
+            result.push(oid);
         }
-
         Ok(result)
     }
 

@@ -31,14 +31,14 @@ impl<'a, C> Schema<'a, C>
     where C: 'a + Clone
 {
     /// Given an empty database, create the given schema in it.
-    pub fn set(&self, db: &SqliteConnection) -> SqliteResult<()> {
+    pub fn set(&self, db: &mut SqliteConnection) -> SqliteResult<()> {
         let tx = db.transaction()?;
         for line in self.schema {
-            db.execute(line, &[])?;
+            tx.execute(line, &[])?;
         }
 
-        db.execute("CREATE TABLE schema_version (version TEXT)", &[])?;
-        db.execute("INSERT INTO schema_version VALUES (?)", &[&self.version])?;
+        tx.execute("CREATE TABLE schema_version (version TEXT)", &[])?;
+        tx.execute("INSERT INTO schema_version VALUES (?)", &[&self.version])?;
 
         tx.commit()?;
         Ok(())
@@ -101,8 +101,8 @@ mod test {
     fn test_set() {
         let tmp = TempDir::new("sqlpool").unwrap();
         let path = tmp.path();
-        let conn = SqliteConnection::open(&path.join("blort.db")).unwrap();
-        SCHEMA1.set(&conn).unwrap();
+        let mut conn = SqliteConnection::open(&path.join("blort.db")).unwrap();
+        SCHEMA1.set(&mut conn).unwrap();
         SCHEMA1.check(&conn).unwrap();
     }
 }
